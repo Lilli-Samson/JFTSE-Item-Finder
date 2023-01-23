@@ -1,0 +1,17 @@
+CMakeLists.txt.user
+cyoae.interp
+cyoae.tokens
+cyoaeLexer.interp
+cyoaeLexer.js
+cyoaeLexer.tokens
+cyoaeListener.js
+cyoaeLexer.ts
+cyoaeListener.ts
+cyoaeParser.ts
+cyoaeParser.js
+package-lock.json
+node_modules
+*.js
+.antlr
+*.map
+*.mjs
