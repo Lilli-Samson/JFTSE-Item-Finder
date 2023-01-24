@@ -9,13 +9,15 @@ CP = cp
 all: release
 
 .PHONY: release
-release: main.js
-	$(BROWSERIFY) $< > browserified.js
-	$(MINIFY) browserified.js -cm > main.js
+release: browserified.js
+	$(MINIFY) $< -cm > script.js
 
 .PHONY: debug
-debug: main.js
-	$(BROWSERIFY) $< > main.js
+debug: browserified.js
+	$(CP) $< script.js
+
+browserified.js: main.js
+	$(BROWSERIFY) $< > $@
 
 $(patsubst %.ts,%.js,$(wildcard *.ts)) &: *.ts tsconfig.json makefile
 	$(TSC) $(TSC_FLAGS) .
