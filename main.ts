@@ -1,3 +1,4 @@
+import { notEqual } from 'assert';
 import { makeCheckboxTree, TreeNode, getLeafStates } from './checkboxTree';
 import { downloadItems, getResultsTable, Item } from './itemLookup';
 
@@ -22,7 +23,7 @@ const partsFilter = [
         ],
         "Upper",
         "Lower",
-        "Shoes", [
+        "Legs", [
             "Shoes",
             "Socks",
         ],
@@ -137,6 +138,13 @@ downloadItems().then(() => {
     updateResults();
 });
 
+function compare(lhs: number, rhs: number) {
+    if (lhs == rhs) {
+        return 0;
+    }
+    return lhs < rhs ? -1 : 1;
+}
+
 function updateResults() {
     const filters: ((item: Item) => boolean)[] = [];
 
@@ -162,7 +170,80 @@ function updateResults() {
         });
     }
 
-    const table = getResultsTable(item => filters.every(filter => filter(item)), items => items.slice(0, 3));
+    {
+        //TODO: Add availability filter
+    }
+
+    const comparators: ((lhs: Item, rhs: Item) => number)[] = [];
+
+    {
+        const priorityList = document.getElementById("priority list");
+        if (!(priorityList instanceof HTMLOListElement)) {
+            throw "Internal error";
+        }
+        const texts = Array.from(priorityList.childNodes).filter(node => !node.textContent?.includes('\n')).map(node => node.textContent);
+        for (const text of texts) {
+            switch (text) {
+                case "Movement Speed":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.movement, rhs.movement));
+                    break;
+                case "Charge":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.charge, rhs.charge));
+                    break;
+                case "Lob":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.lob, rhs.lob));
+                    break;
+                case "Str":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.str, rhs.str));
+                    break;
+                case "Dex":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.dex, rhs.dex));
+                    break;
+                case "Sta":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.sta, rhs.sta));
+                    break;
+                case "Will":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.wil, rhs.wil));
+                    break;
+                case "Serve":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.serve, rhs.serve));
+                    break;
+                case "Quickslots":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.quickslots, rhs.quickslots));
+                    break;
+                case "Buffslots":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.buffslots, rhs.buffslots));
+                    break;
+                case "HP":
+                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.hp, rhs.hp));
+                    break;
+                //case "AP cost":
+                //    comparators.push((lhs: Item, rhs: Item) => compare(lhs. , rhs.));
+                //    break;
+                //case "Gold cost":
+                //    comparators.push((lhs: Item, rhs: Item) => compare(lhs. , rhs.));
+                //    break;
+            }
+        }
+    }
+
+    const table = getResultsTable(
+        item => filters.every(filter => filter(item)),
+        (items, item) => {
+            if (items.length === 0) {
+                return [item];
+            }
+            for (const comparator of comparators) {
+                switch (comparator(items[0], item)) {
+                    case -1:
+                        return [item];
+                    case 1:
+                        return items;
+                }
+            }
+            return [...items, item];
+        }
+    );
     const target = document.getElementById("results");
     if (!target) {
         return;

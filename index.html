@@ -13,11 +13,11 @@
         <legend>Filter</legend>
         <div id="characterFilters"></div>
         <div id="partsFilter"></div>
-        <div id="availabilityFilter"></div>
+        <div id="availabilityFilter" class="disabled"></div>
     </fieldset>
     <fieldset id="priority group" hidden>
         <legend>Sort Priority</legend>
-        <ol reversed>
+        <ol reversed id="priority list">
             <li class="dropzone" draggable="true">Movement Speed</li>
             <li class="dropzone" draggable="true">Charge</li>
             <li class="dropzone" draggable="true">Lob</li>
@@ -29,8 +29,10 @@
             <li class="dropzone" draggable="true">Quickslots</li>
             <li class="dropzone" draggable="true">Buffslots</li>
             <li class="dropzone" draggable="true">HP</li>
+            <!--
             <li class="dropzone" draggable="true">AP cost</li>
             <li class="dropzone" draggable="true">Gold cost</li>
+            -->
         </ol>
     </fieldset>
     <fieldset id="results group" hidden>

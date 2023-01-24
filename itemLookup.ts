@@ -263,7 +263,7 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
     return row;
 }
 
-export function getResultsTable(filter: (item: Item) => boolean, priorizer: (items: Item[]) => Item[]): HTMLTableElement {
+export function getResultsTable(filter: (item: Item) => boolean, priorizer: (items: Item[], item: Item) => Item[]): HTMLTableElement {
     const results: { [key: string]: Item[] } = {
         "Hat": [],
         "Hair": [],
@@ -280,7 +280,7 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
 
     for (const item of items) {
         if (filter(item)) {
-            results[item.part] = priorizer([...results[item.part], item]);
+            results[item.part] = priorizer(results[item.part], item);
         }
     }
 
