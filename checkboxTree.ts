@@ -104,31 +104,52 @@ function applyCheckListeners(node: HTMLUListElement) {
             applyCheckListeners(element);
         }
     }
-
 }
 
-function addCheckboxTreeNode(element: HTMLElement, TreeNode: TreeNode) {
-    if (typeof TreeNode === "string") {
-        element.appendChild(createHTML(["input", { type: "checkbox", id: TreeNode, checked: "true" }]));
-        element.appendChild(createHTML(["label", { for: TreeNode }, TreeNode]));
+function makeCheckboxTreeNode(treeNode: TreeNode): [HTMLInputElement, HTMLLabelElement] | [HTMLUListElement] {
+    if (typeof treeNode === "string") {
+        return [
+            createHTML(["input", { type: "checkbox", id: treeNode, checked: "true" }]),
+            createHTML(["label", { for: treeNode }, treeNode])
+        ];
     }
     else {
         const list = createHTML(["ul"]);
-        for (let i = 0; i < TreeNode.length; i++) {
-            const f = TreeNode[i];
-            const last = i === TreeNode.length - 1;
-            addCheckboxTreeNode(list, f);
-            if (!last && typeof f === "string") {
+        for (let i = 0; i < treeNode.length; i++) {
+            const node = treeNode[i];
+            const last = i === treeNode.length - 1;
+            for (const e of makeCheckboxTreeNode(node)) {
+                list.appendChild(e);
+            }
+            if (!last && typeof node === "string") {
                 list.appendChild(createHTML(["br"]));
             }
         }
-        element.appendChild(list);
+        return [list];
     }
 }
 
-export function makeCheckboxTree(TreeNode: TreeNode) {
-    const root = createHTML(["ul", { class: "treeview" }]);
-    addCheckboxTreeNode(root, TreeNode);
+export function makeCheckboxTree(treeNode: TreeNode) {
+    let root = makeCheckboxTreeNode(treeNode)[0];
+    if (!(root instanceof HTMLUListElement)) {
+        throw "Internal error";
+    }
+    root.classList.add("treeview");
     applyCheckListeners(root);
     return root;
+}
+
+export function getLeafStates(node: HTMLUListElement) {
+    let states: { [key: string]: boolean } = {};
+    for (const element of node.children) {
+        if (element instanceof HTMLInputElement) {
+            if (getChildren(element).length === 0) {
+                states[element.id] = element.checked;
+            }
+        }
+        else if (element instanceof HTMLUListElement) {
+            states = { ...states, ...getLeafStates(element) };
+        }
+    }
+    return states;
 }

@@ -1,5 +1,5 @@
-import { makeCheckboxTree, TreeNode } from './checkboxTree';
-import { downloadItems, getResultsTable } from './itemLookup';
+import { makeCheckboxTree, TreeNode, getLeafStates } from './checkboxTree';
+import { downloadItems, getResultsTable, Item } from './itemLookup';
 
 const characterFilters = [
     "Characters", [
@@ -76,8 +76,10 @@ function addFilterTrees() {
         if (!target) {
             return;
         }
+        const tree = makeCheckboxTree(filter);
+        tree.addEventListener("change", () => updateResults());
         target.innerText = "";
-        target.appendChild(makeCheckboxTree(filter));
+        target.appendChild(tree);
     }
 }
 
@@ -136,7 +138,31 @@ downloadItems().then(() => {
 });
 
 function updateResults() {
-    const table = getResultsTable(item => true, items => items.slice(0, 1));
+    const filters: ((item: Item) => boolean)[] = [];
+
+    {
+        const characterFilterList = document.getElementById("characterFilters")?.children[0];
+        if (!(characterFilterList instanceof HTMLUListElement)) {
+            throw "Internal error";
+        }
+        const characterStates = getLeafStates(characterFilterList);
+        filters.push((item: Item): boolean => {
+            return characterStates[item.character];
+        });
+    }
+
+    {
+        const partsFilterList = document.getElementById("partsFilter")?.children[0];
+        if (!(partsFilterList instanceof HTMLUListElement)) {
+            throw "Internal error";
+        }
+        const partsStates = getLeafStates(partsFilterList);
+        filters.push((item: Item): boolean => {
+            return partsStates[item.part];
+        });
+    }
+
+    const table = getResultsTable(item => filters.every(filter => filter(item)), items => items.slice(0, 3));
     const target = document.getElementById("results");
     if (!target) {
         return;
