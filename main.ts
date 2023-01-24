@@ -2,7 +2,7 @@ import { createHTML } from './html';
 
 type Filter = string | Filter[];
 
-const filters: Filter = [
+const characterFilters = [
     "Characters", [
         "Niki",
         "LunLun",
@@ -12,7 +12,10 @@ const filters: Filter = [
         "Pochi",
         "Al",
     ],
-    "Part", [
+];
+
+const partsFilter = [
+    "Parts", [
         "Head", [
             "Hat",
             "Hair",
@@ -31,6 +34,9 @@ const filters: Filter = [
         ],
         "Racket",
     ],
+];
+
+const availabilityFilter = [
     "Availability", [
         "Shop", [
             "Gold",
@@ -79,14 +85,29 @@ function addFilterTreeNode(element: HTMLElement, filter: Filter) {
     }
 }
 
-function addFilterTree() {
+function makeFilterTree(filter: Filter) {
     const root = createHTML(["ul", { class: "treeview" }]);
-    addFilterTreeNode(root, filters);
-    document.body.textContent = "";
-    document.body.appendChild(root);
+    addFilterTreeNode(root, filter);
+    return root;
 }
 
-addFilterTree();
+function addFilterTrees() {
+    const filters: [Filter, string][] = [
+        [characterFilters, "characterFilters"],
+        [partsFilter, "partsFilter"],
+        [availabilityFilter, "availabilityFilter"],
+    ];
+    for (const [filter, name] of filters) {
+        const target = document.getElementById(name);
+        if (!target) {
+            return;
+        }
+        target.innerText = "";
+        target.appendChild(makeFilterTree(filter));
+    }
+}
+
+addFilterTrees();
 
 function getChildren(node: HTMLInputElement): HTMLInputElement[] {
     const parent = node.parentElement;
@@ -181,7 +202,6 @@ function applyCheckListeners() {
             if (!(target instanceof HTMLInputElement)) {
                 return;
             }
-            console.log(`Clicked on ${getName(target)}`);
             applyCheckedToDescendants(target);
             updateAncestors(target);
         });
@@ -189,3 +209,39 @@ function applyCheckListeners() {
 }
 
 applyCheckListeners();
+
+let dragged: HTMLElement;
+
+function applyDragDrop() {
+    document.addEventListener("dragstart", ({ target }) => {
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+        dragged = target;
+    });
+
+    document.addEventListener("dragover", (event) => {
+        event.preventDefault();
+    });
+
+    document.addEventListener("drop", ({ target }) => {
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+        if (target.className == "dropzone" && target !== dragged) {
+            if (dragged.parentNode !== target.parentNode) { //disallow dragging across different lists
+                return;
+            }
+            const list = Array.from(dragged.parentNode?.children ?? new HTMLCollection);
+            const index = list.indexOf(dragged);
+            dragged.remove();
+            if (index > list.indexOf(target)) {
+                target.before(dragged);
+            } else {
+                target.after(dragged);
+            }
+        }
+    });
+}
+
+applyDragDrop();

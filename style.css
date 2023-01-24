@@ -1,0 +1,15 @@
+fieldset {
+    display: inline-flex;
+}
+
+div {
+    display: inline-flex;
+}
+
+li.dropzone {
+    cursor: grab;
+}
+
+li.dropzone:active {
+    cursor: grabbing;
+}

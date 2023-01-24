@@ -4,9 +4,30 @@
 <head>
     <meta charset='UTF-8'>
     <title>FT Item Finder</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
 </head>
 
 <body>
+    <fieldset>
+        <legend>Filter</legend>
+        <div id="characterFilters"></div>
+        <div id="partsFilter"></div>
+        <div id="availabilityFilter"></div>
+    </fieldset>
+    <fieldset>
+        <legend>Sort Priority</legend>
+        <ol reversed>
+            <li class="dropzone" draggable="true">Movement Speed</li>
+            <li class="dropzone" draggable="true">Charge</li>
+            <li class="dropzone" draggable="true">Lob</li>
+            <li class="dropzone" draggable="true">Str</li>
+            <li class="dropzone" draggable="true">Dex</li>
+            <li class="dropzone" draggable="true">Sta</li>
+            <li class="dropzone" draggable="true">Will</li>
+            <li class="dropzone" draggable="true">Serve</li>
+            <li class="dropzone" draggable="true">HP</li>
+        </ol>
+    </fieldset>
     <script src="script.js"></script>
 </body>
 <footer>
