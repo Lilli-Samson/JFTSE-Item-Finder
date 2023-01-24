@@ -1,5 +1,5 @@
 import { makeCheckboxTree, TreeNode } from './checkboxTree';
-import { downloadItems } from './itemLookup';
+import { downloadItems, getResultsTable } from './itemLookup';
 
 const characterFilters = [
     "Characters", [
@@ -125,10 +125,22 @@ downloadItems().then(() => {
         element.hidden = true;
     }
 
-    for (const name of ["filter group", "priority group"]) {
+    for (const name of ["filter group", "priority group", "results group"]) {
         const element = document.getElementById(name);
         if (element) {
             element.hidden = false;
         }
     }
+
+    updateResults();
 });
+
+function updateResults() {
+    const table = getResultsTable(item => true, items => items.slice(0, 1));
+    const target = document.getElementById("results");
+    if (!target) {
+        return;
+    }
+    target.innerText = "";
+    target.appendChild(table);
+}

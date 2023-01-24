@@ -15,7 +15,7 @@ function getChildren(node: HTMLInputElement): HTMLInputElement[] {
         if (!(potentialSiblingList instanceof HTMLUListElement)) {
             break;
         }
-        return Array.from(potentialSiblingList.children).filter(e => e instanceof HTMLInputElement) as HTMLInputElement[];
+        return Array.from(potentialSiblingList.children).filter((e): e is HTMLInputElement => e instanceof HTMLInputElement);
     }
     return [];
 }

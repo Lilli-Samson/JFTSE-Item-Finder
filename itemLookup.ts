@@ -1,8 +1,6 @@
-export type Character = "Niki" | "LunLun" | "Lucy" | "Shua" | "Dhanpir" | "Pochi" | "Al";
+import { createHTML } from './html';
 
-function isOfTypeCharacter(str: string): str is Character {
-    return ["Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al"].includes(str);
-}
+export type Character = "Niki" | "LunLun" | "Lucy" | "Shua" | "Dhanpir" | "Pochi" | "Al";
 
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
 
@@ -45,10 +43,13 @@ export class Item {
 let items: Item[] = [];
 
 function parseData(data: string): Item[] {
+    if (data.length < 1000) {
+        console.warn(`Items file is only ${data.length} bytes long`);
+    }
     const items: Item[] = [];
-    for (const [, result] of data.matchAll(/\<Item (.*)\\\>/g)) {
+    for (const [, result] of data.matchAll(/\<Item (.*)\/\>/g)) {
         const item: Item = new Item;
-        for (const [, attribute, value] of result.matchAll(/([^=]*)="([^"]*)"/g)) {
+        for (const [, attribute, value] of result.matchAll(/\s?([^=]*)="([^"]*)"/g)) {
             switch (attribute) {
                 case "Index":
                     break;
@@ -71,15 +72,34 @@ function parseData(data: string): Item[] {
                     item.resist = value;
                     break;
                 case "Char":
-                    if (isOfTypeCharacter(value)) {
-                        item.character = value;
-                    }
-                    else {
-                        console.error(`Found unknown character ${value}`);
+                    switch (value) {
+                        case "NIKI":
+                            item.character = "Niki";
+                            break;
+                        case "LUNLUN":
+                            item.character = "LunLun";
+                            break;
+                        case "LUCY":
+                            item.character = "Lucy";
+                            break;
+                        case "SHUA":
+                            item.character = "Shua";
+                            break;
+                        case "DHANPIR":
+                            item.character = "Dhanpir";
+                            break;
+                        case "POCHI":
+                            item.character = "Pochi";
+                            break;
+                        case "AL":
+                            item.character = "Al";
+                            break;
+                        default:
+                            console.warn(`Found unknown character "${value}"`);
                     }
                     break;
                 case "Part":
-                    switch (value) {
+                    switch (String(value)) {
                         case "BAG":
                             item.part = "Backpack";
                             break;
@@ -114,7 +134,7 @@ function parseData(data: string): Item[] {
                             item.part = "Dye";
                             break;
                         default:
-                            console.error(`Found unknown part ${value}`);
+                            console.warn(`Found unknown part ${value}`);
                     }
                     break;
                 case "Level":
@@ -193,7 +213,7 @@ function parseData(data: string): Item[] {
                     item.gauge_battle = parseInt(value);
                     break;
                 default:
-                    console.error(`Found unknown item attribute ${attribute}`);
+                    console.warn(`Found unknown item attribute "${attribute}"`);
             }
         }
         items.push(item);
@@ -209,4 +229,89 @@ export async function downloadItems() {
     }
     const data = await reply.text();
     items = parseData(data);
+    console.log(`Loaded ${items.length} items`);
+}
+
+function itemToTableRow(item: Item): HTMLTableRowElement {
+    //Name
+    //Str
+    //Sta
+    //Dex
+    //Wil
+    //Smash
+    //Movement
+    //Charge
+    //Lob
+    //Serve
+
+    const row = createHTML(
+        ["tr",
+            ["td", item.name_en],
+            ["td", `${item.str}`],
+            ["td", `${item.sta}`],
+            ["td", `${item.dex}`],
+            ["td", `${item.wil}`],
+            ["td", `${item.smash}`],
+            ["td", `${item.movement}`],
+            ["td", `${item.charge}`],
+            ["td", `${item.lob}`],
+            ["td", `${item.serve}`],
+        ]
+    );
+    return row;
+}
+
+export function getResultsTable(filter: (item: Item) => boolean, priorizer: (items: Item[]) => Item[]): HTMLTableElement {
+    const results: { [key: string]: Item[] } = {
+        "Hat": [],
+        "Hair": [],
+        "Dye": [],
+        "Upper": [],
+        "Lower": [],
+        "Shoes": [],
+        "Socks": [],
+        "Hand": [],
+        "Backpack": [],
+        "Face": [],
+        "Racket": [],
+    };
+
+    for (const item of items) {
+        if (filter(item)) {
+            results[item.part] = priorizer([...results[item.part], item]);
+        }
+    }
+
+    const table = createHTML(
+        ["table",
+            ["col"],
+            ["col"],
+            ["col"],
+            ["col"],
+            ["col"],
+            ["col"],
+            ["col"],
+            ["col"],
+            ["col"],
+            ["col"],
+            ["tr",
+                ["th", "Name"],
+                ["th", "Str"],
+                ["th", "Sta"],
+                ["th", "Dex"],
+                ["th", "Wil"],
+                ["th", "Smash"],
+                ["th", "Movement"],
+                ["th", "Charge"],
+                ["th", "Lob"],
+                ["th", "Serve"],
+            ]
+        ]
+    );
+    for (const result of Object.values(results)) {
+        for (const item of result) {
+            table.appendChild(itemToTableRow(item));
+        }
+    }
+    return table;
 }
