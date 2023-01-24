@@ -78,7 +78,7 @@ function addFilterTrees() {
             return;
         }
         const tree = makeCheckboxTree(filter);
-        tree.addEventListener("change", () => updateResults());
+        tree.addEventListener("change", updateResults);
         target.innerText = "";
         target.appendChild(tree);
     }
@@ -116,6 +116,7 @@ function applyDragDrop() {
             } else {
                 target.after(dragged);
             }
+            updateResults();
         }
     });
 }
