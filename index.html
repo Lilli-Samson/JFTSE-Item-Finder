@@ -8,13 +8,14 @@
 </head>
 
 <body>
-    <fieldset>
+    <p id="loading">Loading item list, please wait...</p>
+    <fieldset id="filter group" hidden>
         <legend>Filter</legend>
         <div id="characterFilters"></div>
         <div id="partsFilter"></div>
         <div id="availabilityFilter"></div>
     </fieldset>
-    <fieldset>
+    <fieldset id="priority group" hidden>
         <legend>Sort Priority</legend>
         <ol reversed>
             <li class="dropzone" draggable="true">Movement Speed</li>
@@ -25,6 +26,8 @@
             <li class="dropzone" draggable="true">Sta</li>
             <li class="dropzone" draggable="true">Will</li>
             <li class="dropzone" draggable="true">Serve</li>
+            <li class="dropzone" draggable="true">Quickslots</li>
+            <li class="dropzone" draggable="true">Buffslots</li>
             <li class="dropzone" draggable="true">HP</li>
             <li class="dropzone" draggable="true">AP cost</li>
             <li class="dropzone" draggable="true">Gold cost</li>

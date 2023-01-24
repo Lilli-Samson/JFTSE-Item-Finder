@@ -1,4 +1,5 @@
 import { makeCheckboxTree, TreeNode } from './checkboxTree';
+import { downloadItems } from './itemLookup';
 
 const characterFilters = [
     "Characters", [
@@ -117,3 +118,17 @@ function applyDragDrop() {
 }
 
 applyDragDrop();
+
+downloadItems().then(() => {
+    const element = document.getElementById("loading");
+    if (element) {
+        element.hidden = true;
+    }
+
+    for (const name of ["filter group", "priority group"]) {
+        const element = document.getElementById(name);
+        if (element) {
+            element.hidden = false;
+        }
+    }
+});
