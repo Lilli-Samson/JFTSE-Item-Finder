@@ -149,7 +149,7 @@ function compare(lhs: number, rhs: number) {
 function updateResults() {
     const filters: ((item: Item) => boolean)[] = [];
 
-    {
+    { //character filter
         const characterFilterList = document.getElementById("characterFilters")?.children[0];
         if (!(characterFilterList instanceof HTMLUListElement)) {
             throw "Internal error";
@@ -160,7 +160,7 @@ function updateResults() {
         });
     }
 
-    {
+    { //parts filter
         const partsFilterList = document.getElementById("partsFilter")?.children[0];
         if (!(partsFilterList instanceof HTMLUListElement)) {
             throw "Internal error";
@@ -171,8 +171,16 @@ function updateResults() {
         });
     }
 
-    {
-        //TODO: Add availability filter
+    { //TODO: Add availability filter
+    }
+
+    { //misc filter
+        const levelrange = document.getElementById("levelrange");
+        if (!(levelrange instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        const maxLevel = parseInt(levelrange.value);
+        filters.push((item: Item) => item.level <= maxLevel);
     }
 
     const comparators: ((lhs: Item, rhs: Item) => number)[] = [];
@@ -252,3 +260,22 @@ function updateResults() {
     target.innerText = "";
     target.appendChild(table);
 }
+
+function setMaxLevelDisplayUpdate() {
+    const levelDisplay = document.getElementById("levelDisplay");
+    if (!(levelDisplay instanceof HTMLLabelElement)) {
+        throw "Internal error";
+    }
+    const levelrange = document.getElementById("levelrange");
+    if (!(levelrange instanceof HTMLInputElement)) {
+        throw "Internal error";
+    }
+    const callback = () => {
+        levelDisplay.textContent = `Max level requirement: ${levelrange.value}`;
+        updateResults();
+    };
+    levelrange.addEventListener("input", callback);
+    callback();
+}
+
+setMaxLevelDisplayUpdate();

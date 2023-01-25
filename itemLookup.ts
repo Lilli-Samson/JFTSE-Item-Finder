@@ -244,6 +244,7 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
     //Charge
     //Lob
     //Serve
+    //Max level
 
     const row = createHTML(
         ["tr",
@@ -258,6 +259,7 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
             ["td", `${item.charge}`],
             ["td", `${item.lob}`],
             ["td", `${item.serve}`],
+            ["td", `${item.level}`],
         ]
     );
     return row;
@@ -297,6 +299,7 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
             ["col"],
             ["col"],
             ["col"],
+            ["col"],
             ["tr",
                 ["th", "Name"],
                 ["th", "Character"],
@@ -309,6 +312,7 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
                 ["th", "Charge"],
                 ["th", "Lob"],
                 ["th", "Serve"],
+                ["th", "Level"],
             ]
         ]
     );

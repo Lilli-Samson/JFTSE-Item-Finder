@@ -2,8 +2,19 @@ fieldset {
     display: inline-flex;
 }
 
-div {
-    display: inline-flex;
+div#miscFilter {
+    display: grid;
+    width: max-content;
+    height: max-content;
+}
+
+div#miscFilter label {
+    display: grid;
+    height: fit-content;
+}
+
+div#miscFilter input {
+    height: fit-content;
 }
 
 li.dropzone {
