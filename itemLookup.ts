@@ -222,10 +222,10 @@ function parseData(data: string): Item[] {
 }
 
 export async function downloadItems() {
-    const url = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/master/auth-server/src/main/resources/res/Item_Parts_Ini3.xml";
+    const url = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res/Item_Parts_Ini3.xml";
     const reply = await fetch(url);
     if (!reply.ok) {
-        alert(`Failed downloading item data from ${"https://raw.githubusercontent.com/sstokic-tgm/JFTSE/master/auth-server/src/main/resources/res/Item_Parts_Ini3.xml"}`);
+        alert(`Failed downloading item data from ${url}`);
     }
     const data = await reply.text();
     items = parseData(data);
