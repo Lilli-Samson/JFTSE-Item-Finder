@@ -323,3 +323,7 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
     }
     return table;
 }
+
+export function getMaxItemLevel() {
+    return items.reduce((level: number, item: Item) => Math.max(item.level, level), 0);
+}

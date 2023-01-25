@@ -1,6 +1,5 @@
-import { notEqual } from 'assert';
 import { makeCheckboxTree, TreeNode, getLeafStates } from './checkboxTree';
-import { downloadItems, getResultsTable, Item } from './itemLookup';
+import { downloadItems, getResultsTable, Item, getMaxItemLevel } from './itemLookup';
 
 const characterFilters = [
     "Characters", [
@@ -136,6 +135,13 @@ downloadItems().then(() => {
         }
     }
 
+    const levelrange = document.getElementById("levelrange");
+    if (!(levelrange instanceof HTMLInputElement)) {
+        throw "Internal error";
+    }
+    levelrange.max = `${getMaxItemLevel()}`;
+    levelrange.value = levelrange.max;
+    levelrange.dispatchEvent(new Event("input"));
     updateResults();
 });
 
