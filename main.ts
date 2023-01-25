@@ -45,7 +45,7 @@ const availabilityFilter = [
         "-Guardian",
         "Parcel enabled",
         "Parcel disabled",
-        "-Exclude unavailable items",
+        "Exclude unavailable items",
     ],
 ];
 
@@ -194,6 +194,9 @@ function updateResults() {
         }
         if (!availabilityStates["Parcel disabled"]) {
             filters.push(item => item.parcel_enabled);
+        }
+        if (availabilityStates["Exclude unavailable items"]) {
+            filters.push(item => item.available_in_shop);
         }
     }
 

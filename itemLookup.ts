@@ -5,42 +5,44 @@ export type Character = "Niki" | "LunLun" | "Lucy" | "Shua" | "Dhanpir" | "Pochi
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
 
 export class Item {
-    id: number = 0;
-    name_kr: string = "";
-    name_en: string = "";
-    useType: string = "";
-    maxUse: number = 0;
-    hidden: boolean = false;
-    resist: string = "";
+    id = 0;
+    name_kr = "";
+    name_en = "";
+    name_shop = "";
+    useType = "";
+    maxUse = 0;
+    hidden = false;
+    resist = "";
     character: Character = "Niki";
     part: Part = "Hat";
-    level: number = 0;
-    str: number = 0;
-    sta: number = 0;
-    dex: number = 0;
-    wil: number = 0;
-    hp: number = 0;
-    quickslots: number = 0;
-    buffslots: number = 0;
-    smash: number = 0;
-    movement: number = 0;
-    charge: number = 0;
-    lob: number = 0;
-    serve: number = 0;
-    max_str: number = 0;
-    max_sta: number = 0;
-    max_dex: number = 0;
-    max_wil: number = 0;
-    element_enchantable: boolean = false;
-    parcel_enabled: boolean = false;
-    spin: number = 0;
-    atss: number = 0;
-    dfss: number = 0;
-    socket: number = 0;
-    gauge: number = 0;
-    gauge_battle: number = 0;
-    price: number = 0;
+    level = 0;
+    str = 0;
+    sta = 0;
+    dex = 0;
+    wil = 0;
+    hp = 0;
+    quickslots = 0;
+    buffslots = 0;
+    smash = 0;
+    movement = 0;
+    charge = 0;
+    lob = 0;
+    serve = 0;
+    max_str = 0;
+    max_sta = 0;
+    max_dex = 0;
+    max_wil = 0;
+    element_enchantable = false;
+    parcel_enabled = false;
+    spin = 0;
+    atss = 0;
+    dfss = 0;
+    socket = 0;
+    gauge = 0;
+    gauge_battle = 0;
+    price = 0;
     price_type: "ap" | "gold" | "none" = "none";
+    available_in_shop = false;
 }
 
 let items = new Map<number, Item>();
@@ -255,6 +257,18 @@ function parseShopData(data: string) {
                     }
                     item.price = parseInt(value);
                     break;
+                case "Enable":
+                    if (!item) {
+                        break;
+                    }
+                    item.available_in_shop = !!parseInt(value);
+                    break;
+                case "Name":
+                    if (!item) {
+                        break;
+                    }
+                    item.name_shop = value;
+                    break;
             }
         }
     }
@@ -299,6 +313,13 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
                 return `${item.price} ap`;
         }
         return "";
+    }
+
+    const nameString = (item: Item) => {
+        if (item.name_shop !== item.name_en) {
+            return item.name_en + "/" + item.name_shop;
+        }
+        return item.name_en;
     }
 
     const row = createHTML(
