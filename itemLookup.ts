@@ -235,6 +235,7 @@ export async function downloadItems() {
 function itemToTableRow(item: Item): HTMLTableRowElement {
     //Name
     //Character
+    //Part
     //Str
     //Sta
     //Dex
@@ -250,6 +251,7 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
         ["tr",
             ["td", item.name_en],
             ["td", item.character],
+            ["td", item.part],
             ["td", `${item.str}`],
             ["td", `${item.sta}`],
             ["td", `${item.dex}`],
@@ -300,9 +302,11 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
             ["col"],
             ["col"],
             ["col"],
+            ["col"],
             ["tr",
                 ["th", "Name"],
                 ["th", "Character"],
+                ["th", "Part"],
                 ["th", "Str"],
                 ["th", "Sta"],
                 ["th", "Dex"],

@@ -2,18 +2,14 @@ fieldset {
     display: inline-flex;
 }
 
-div#miscFilter {
+div.rowlayout {
     display: grid;
     width: max-content;
     height: max-content;
 }
 
-div#miscFilter label {
+div.rowlayout * {
     display: grid;
-    height: fit-content;
-}
-
-div#miscFilter input {
     height: fit-content;
 }
 
