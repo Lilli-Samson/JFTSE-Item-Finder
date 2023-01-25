@@ -108,10 +108,21 @@ function applyCheckListeners(node: HTMLUListElement) {
 
 function makeCheckboxTreeNode(treeNode: TreeNode): [HTMLInputElement, HTMLLabelElement] | [HTMLUListElement] {
     if (typeof treeNode === "string") {
-        return [
+        let disabled = false;
+        if (treeNode[0] === "-") {
+            treeNode = treeNode.substring(1);
+            disabled = true;
+        }
+
+        const node: [HTMLInputElement, HTMLLabelElement] = [
             createHTML(["input", { type: "checkbox", id: treeNode, checked: "true" }]),
             createHTML(["label", { for: treeNode }, treeNode])
         ];
+        if (disabled) {
+            node[0].classList.add("disabled");
+            node[1].classList.add("disabled");
+        }
+        return node;
     }
     else {
         const list = createHTML(["ul"]);

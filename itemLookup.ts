@@ -8,6 +8,7 @@ export class Item {
     id: number = 0;
     name_kr: string = "";
     name_en: string = "";
+    name_shop: string = "";
     useType: string = "";
     maxUse: number = 0;
     hidden: boolean = false;
@@ -39,15 +40,16 @@ export class Item {
     socket: number = 0;
     gauge: number = 0;
     gauge_battle: number = 0;
+    price: number = 0;
+    price_type: "ap" | "gold" | "none" = "none";
 }
 
 let items = new Map<number, Item>();
 
-function parseData(data: string): Map<number, Item> {
+function parseItemData(data: string) {
     if (data.length < 1000) {
         console.warn(`Items file is only ${data.length} bytes long`);
     }
-    const items = new Map<number, Item>();
     for (const [, result] of data.matchAll(/\<Item (.*)\/\>/g)) {
         const item: Item = new Item;
         for (const [, attribute, value] of result.matchAll(/\s?([^=]*)="([^"]*)"/g)) {
@@ -179,16 +181,16 @@ function parseData(data: string): Map<number, Item> {
                     item.serve = parseInt(value);
                     break;
                 case "MAX_STR":
-                    item.str = parseInt(value);
+                    item.max_str = parseInt(value);
                     break;
                 case "MAX_STA":
-                    item.sta = parseInt(value);
+                    item.max_sta = parseInt(value);
                     break;
                 case "MAX_DEX":
-                    item.dex = parseInt(value);
+                    item.max_dex = parseInt(value);
                     break;
                 case "MAX_WIL":
-                    item.wil = parseInt(value);
+                    item.max_wil = parseInt(value);
                     break;
                 case "EnchantElement":
                     item.element_enchantable = !!parseInt(value);
@@ -220,17 +222,67 @@ function parseData(data: string): Map<number, Item> {
         }
         items.set(item.id, item);
     }
-    return items;
+}
+
+function parseShopData(data: string) {
+    if (data.length < 1000) {
+        console.warn(`Shop file is only ${data.length} bytes long`);
+    }
+    for (const [, result] of data.matchAll(/<Product (.*)\/>/g)) {
+        let item: Item | undefined;
+        for (const [, attribute, value] of result.matchAll(/([^=]*)="([^"]*)" /g)) {
+            switch (attribute) {
+                case "Index":
+                    item = items.get(parseInt(value));
+                    break;
+                case "PriceType":
+                    if (!item) {
+                        break;
+                    }
+                    switch (value) {
+                        case "MINT":
+                            item.price_type = "ap";
+                            break;
+                        case "GOLD":
+                            item.price_type = "gold";
+                            break;
+                        default:
+                            console.warn(`Invalid PriceType "${value}" for item ${item?.id}`);
+                    }
+                    break;
+                case "Price0":
+                    if (!item) {
+                        break;
+                    }
+                    item.price = parseInt(value);
+                    break;
+                case "Name":
+                    if (!item) {
+                        break;
+                    }
+                    item.name_shop = value;
+                    //if (item.name_en !== value) {
+                    //    console.warn(`Inconsistent name of item ${item.id}: Item list: "${item.name_en}", Shop: "${value}`);
+                    //}
+                    break;
+            }
+        }
+    }
+}
+
+async function download(url: string) {
+    const reply = await fetch(url);
+    if (!reply.ok) {
+        alert(`Failed downloading data from ${url}`);
+    }
+    return reply.text();
 }
 
 export async function downloadItems() {
-    const url = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res/Item_Parts_Ini3.xml";
-    const reply = await fetch(url);
-    if (!reply.ok) {
-        alert(`Failed downloading item data from ${url}`);
-    }
-    const data = await reply.text();
-    items = parseData(data);
+    const itemData = await download("https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res/Item_Parts_Ini3.xml");
+    const shopData = await download("https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res/Shop_Ini3.xml");
+    parseItemData(itemData);
+    parseShopData(shopData);
     console.log(`Loaded ${items.size} items`);
 }
 
@@ -249,9 +301,26 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
     //Serve
     //Max level
 
+    const priceString = (item: Item) => {
+        switch (item.price_type) {
+            case "gold":
+                return `${item.price} gold`;
+            case "ap":
+                return `${item.price} ap`;
+        }
+        return "";
+    }
+
+    const nameString = (item: Item) => {
+        if (item.name_shop && item.name_shop !== item.name_en) {
+            return item.name_en + "/" + item.name_shop;
+        }
+        return item.name_en;
+    }
+
     const row = createHTML(
         ["tr",
-            ["td", item.name_en],
+            ["td", nameString(item)],
             ["td", item.character],
             ["td", item.part],
             ["td", `${item.str}`],
@@ -264,6 +333,7 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
             ["td", `${item.lob}`],
             ["td", `${item.serve}`],
             ["td", `${item.level}`],
+            ["td", priceString(item)],
         ]
     );
     return row;
@@ -305,6 +375,7 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
             ["col"],
             ["col"],
             ["col"],
+            ["col"],
             ["tr",
                 ["th", "Name"],
                 ["th", "Character"],
@@ -319,6 +390,7 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
                 ["th", "Lob"],
                 ["th", "Serve"],
                 ["th", "Level"],
+                ["th", "Price"],
             ]
         ]
     );

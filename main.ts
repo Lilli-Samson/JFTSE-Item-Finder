@@ -40,12 +40,12 @@ const availabilityFilter = [
         "Shop", [
             "Gold",
             "AP",
-            "Allow gacha",
+            "-Allow gacha",
         ],
-        "Guardian",
+        "-Guardian",
         "Parcel enabled",
         "Parcel disabled",
-        "Exclude unavailable items",
+        "-Exclude unavailable items",
     ],
 ];
 
@@ -177,7 +177,18 @@ function updateResults() {
         });
     }
 
-    { //TODO: Add availability filter
+    {
+        const availabilityFilterList = document.getElementById("availabilityFilter")?.children[0];
+        if (!(availabilityFilterList instanceof HTMLUListElement)) {
+            throw "Internal error";
+        }
+        const availabilityStates = getLeafStates(availabilityFilterList);
+        if (!availabilityStates["Gold"]) {
+            filters.push(item => item.price_type !== "gold");
+        }
+        if (!availabilityStates["AP"]) {
+            filters.push(item => item.price_type !== "ap");
+        }
     }
 
     { //misc filter
