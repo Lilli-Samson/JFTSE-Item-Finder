@@ -8,7 +8,6 @@ export class Item {
     id: number = 0;
     name_kr: string = "";
     name_en: string = "";
-    name_shop: string = "";
     useType: string = "";
     maxUse: number = 0;
     hidden: boolean = false;
@@ -256,15 +255,6 @@ function parseShopData(data: string) {
                     }
                     item.price = parseInt(value);
                     break;
-                case "Name":
-                    if (!item) {
-                        break;
-                    }
-                    item.name_shop = value;
-                    //if (item.name_en !== value) {
-                    //    console.warn(`Inconsistent name of item ${item.id}: Item list: "${item.name_en}", Shop: "${value}`);
-                    //}
-                    break;
             }
         }
     }
@@ -311,16 +301,9 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
         return "";
     }
 
-    const nameString = (item: Item) => {
-        if (item.name_shop && item.name_shop !== item.name_en) {
-            return item.name_en + "/" + item.name_shop;
-        }
-        return item.name_en;
-    }
-
     const row = createHTML(
         ["tr",
-            ["td", nameString(item)],
+            ["td", item.name_en],
             ["td", item.character],
             ["td", item.part],
             ["td", `${item.str}`],

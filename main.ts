@@ -177,7 +177,7 @@ function updateResults() {
         });
     }
 
-    {
+    { //availability filter
         const availabilityFilterList = document.getElementById("availabilityFilter")?.children[0];
         if (!(availabilityFilterList instanceof HTMLUListElement)) {
             throw "Internal error";
@@ -188,6 +188,12 @@ function updateResults() {
         }
         if (!availabilityStates["AP"]) {
             filters.push(item => item.price_type !== "ap");
+        }
+        if (!availabilityStates["Parcel enabled"]) {
+            filters.push(item => !item.parcel_enabled);
+        }
+        if (!availabilityStates["Parcel disabled"]) {
+            filters.push(item => item.parcel_enabled);
         }
     }
 
