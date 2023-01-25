@@ -5,6 +5,7 @@ export type Character = "Niki" | "LunLun" | "Lucy" | "Shua" | "Dhanpir" | "Pochi
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
 
 export class Item {
+    id: number = 0;
     name_kr: string = "";
     name_en: string = "";
     useType: string = "";
@@ -40,18 +41,19 @@ export class Item {
     gauge_battle: number = 0;
 }
 
-let items: Item[] = [];
+let items = new Map<number, Item>();
 
-function parseData(data: string): Item[] {
+function parseData(data: string): Map<number, Item> {
     if (data.length < 1000) {
         console.warn(`Items file is only ${data.length} bytes long`);
     }
-    const items: Item[] = [];
+    const items = new Map<number, Item>();
     for (const [, result] of data.matchAll(/\<Item (.*)\/\>/g)) {
         const item: Item = new Item;
         for (const [, attribute, value] of result.matchAll(/\s?([^=]*)="([^"]*)"/g)) {
             switch (attribute) {
                 case "Index":
+                    item.id = parseInt(value);
                     break;
                 case "_Name_":
                     item.name_kr = value;
@@ -216,7 +218,7 @@ function parseData(data: string): Item[] {
                     console.warn(`Found unknown item attribute "${attribute}"`);
             }
         }
-        items.push(item);
+        items.set(item.id, item);
     }
     return items;
 }
@@ -229,7 +231,7 @@ export async function downloadItems() {
     }
     const data = await reply.text();
     items = parseData(data);
-    console.log(`Loaded ${items.length} items`);
+    console.log(`Loaded ${items.size} items`);
 }
 
 function itemToTableRow(item: Item): HTMLTableRowElement {
@@ -282,7 +284,7 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
         "Racket": [],
     };
 
-    for (const item of items) {
+    for (const [, item] of items) {
         if (filter(item)) {
             results[item.part] = priorizer(results[item.part], item);
         }
@@ -329,5 +331,10 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
 }
 
 export function getMaxItemLevel() {
-    return items.reduce((level: number, item: Item) => Math.max(item.level, level), 0);
+    //no reduce for Map?
+    let max = 0;
+    for (const [, item] of items) {
+        max = Math.max(max, item.level);
+    }
+    return max;
 }
