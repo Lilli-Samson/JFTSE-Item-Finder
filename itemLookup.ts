@@ -262,8 +262,9 @@ function parseShopData(data: string) {
     if (data.length < 1000) {
         console.warn(`Shop file is only ${data.length} bytes long`);
     }
+    let count = 0;
     let currentIndex = 0;
-    for (const match of data.matchAll(/<Product DISPLAY="\d+" HIT_DISPLAY="\d+" Index="(?<index>\d+)" Enable="(?<enabled>0|1)" New="\d+" Hit="\d+" Free="\d+" Sale="\d+" Event="\d+" Couple="\d+" Nobuy="\d+" Rand="[^"]+" UseType="[^"]+" Use0="\d+" Use1="\d+" Use2="\d+" PriceType="(?<price_type>(?:MINT)|(?:GOLD))" OldPrice0="-?\d+" OldPrice1="-?\d+" OldPrice2="-?\d+" Price0="(?<price>-?\d+)" Price1="-?\d+" Price2="-?\d+" CouplePrice="-?\d+" Category="[^"]*" Name="(?<name>[^"]*)" GoldBack="-?\d+" EnableParcel="(?<parcel_from_shop>0|1)" Char="-?\d+" Item0="(?<item0>-?\d+)" Item1="(?<item1>-?\d+)" Item2="(?<item2>-?\d+)" Item3="(?<item3>-?\d+)" Item4="(?<item4>-?\d+)" Item5="(?<item5>-?\d+)" Item6="(?<item6>-?\d+)" Item7="(?<item7>-?\d+)" Item8="(?<item8>-?\d+)" Item9="(?<item9>-?\d+)" (?:Icon="[^"]*" )?(?:Name_kr="[^"]*" )?(?:Name_en="[^"]*" )?(?:Name_th="[^"]*" )?\/>/g)) {
+    for (const match of data.matchAll(/<Product DISPLAY="\d+" HIT_DISPLAY="\d+" Index="(?<index>\d+)" Enable="(?<enabled>0|1)" New="\d+" Hit="\d+" Free="\d+" Sale="\d+" Event="\d+" Couple="\d+" Nobuy="\d+" Rand="[^"]+" UseType="[^"]+" Use0="\d+" Use1="\d+" Use2="\d+" PriceType="(?<price_type>(?:MINT)|(?:GOLD))" OldPrice0="-?\d+" OldPrice1="-?\d+" OldPrice2="-?\d+" Price0="(?<price>-?\d+)" Price1="-?\d+" Price2="-?\d+" CouplePrice="-?\d+" Category="(?<category>[^"]*)" Name="(?<name>[^"]*)" GoldBack="-?\d+" EnableParcel="(?<parcel_from_shop>0|1)" Char="-?\d+" Item0="(?<item0>-?\d+)" Item1="(?<item1>-?\d+)" Item2="(?<item2>-?\d+)" Item3="(?<item3>-?\d+)" Item4="(?<item4>-?\d+)" Item5="(?<item5>-?\d+)" Item6="(?<item6>-?\d+)" Item7="(?<item7>-?\d+)" Item8="(?<item8>-?\d+)" Item9="(?<item9>-?\d+)" (?:Icon="[^"]*" )?(?:Name_kr="[^"]*" )?(?:Name_en="[^"]*" )?(?:Name_th="[^"]*")?\/>/g)) {
         if (!match.groups) {
             continue;
         }
@@ -274,6 +275,10 @@ function parseShopData(data: string) {
         currentIndex = index;
         const enabled = !!parseInt(match.groups.enabled);
         if (!enabled) {
+            continue;
+        }
+        const category = match.groups.category;
+        if (category !== "PARTS" && category !== "LOTTERY") {
             continue;
         }
         const price_type: "ap" | "gold" | "none" = match.groups.price_type === "MINT" ? "ap" : match.groups.price_type === "GOLD" ? "gold" : "none";
@@ -303,7 +308,9 @@ function parseShopData(data: string) {
             }
             item.sources.push(new ItemSource(name === item.name_en ? "" : name, price, price_type === "ap"));
         }
+        count++;
     }
+    console.log(`Found ${count} shop items`);
 }
 
 async function download(url: string) {
@@ -315,8 +322,8 @@ async function download(url: string) {
 }
 
 export async function downloadItems() {
-    const itemData = await download("https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res/Item_Parts_Ini3.xml");
-    const shopData = await download("https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res/Shop_Ini3.xml");
+    const itemData = await download("https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/Item_Parts_Ini3.xml");
+    const shopData = await download("https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/Shop_Ini3.xml");
     parseItemData(itemData);
     parseShopData(shopData);
     console.log(`Loaded ${items.size} items`);
