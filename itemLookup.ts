@@ -4,6 +4,39 @@ export type Character = "Niki" | "LunLun" | "Lucy" | "Shua" | "Dhanpir" | "Pochi
 
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
 
+type Source = "shop" | "guardian";
+
+export class ItemSource {
+    constructor(item_name: string, price: number, ap: boolean = false, gacha_factor: number = 0) {
+        this.item_name = item_name;
+        this.price = price;
+        if (ap) {
+            this.price *= -1;
+        }
+        this.gacha_factor = gacha_factor;
+    }
+    display_string(): string {
+        if (this.price) {
+            const currency = this.is_ap ? "AP" : "Gold";
+            const price = Math.abs(this.price);
+            return `${this.item_name} from shop for ${price} ${currency}${this.gacha_factor ? ` x ${this.gacha_factor} ≈ ${this.gacha_factor * price} ${currency}` : ""}`;
+        }
+        return `${this.item_name} x ${this.gacha_factor}`;
+    }
+    get is_ap(): boolean {
+        return this.price < 0;
+    }
+    get is_gold(): boolean {
+        return this.price > 0;
+    }
+    get is_gacha(): boolean {
+        return this.gacha_factor !== 0;
+    }
+    item_name: string;
+    price: number;
+    gacha_factor: number;
+}
+
 export class Item {
     id = 0;
     name_kr = "";
@@ -34,15 +67,14 @@ export class Item {
     max_wil = 0;
     element_enchantable = false;
     parcel_enabled = false;
+    parcel_from_shop = false;
     spin = 0;
     atss = 0;
     dfss = 0;
     socket = 0;
     gauge = 0;
     gauge_battle = 0;
-    price = 0;
-    price_type: "ap" | "gold" | "none" = "none";
-    available_in_shop = false;
+    sources: ItemSource[] = []
 }
 
 let items = new Map<number, Item>();
@@ -229,47 +261,46 @@ function parseShopData(data: string) {
     if (data.length < 1000) {
         console.warn(`Shop file is only ${data.length} bytes long`);
     }
-    for (const [, result] of data.matchAll(/<Product (.*)\/>/g)) {
-        let item: Item | undefined;
-        for (const [, attribute, value] of result.matchAll(/([^=]*)="([^"]*)" /g)) {
-            switch (attribute) {
-                case "Index":
-                    item = items.get(parseInt(value));
-                    break;
-                case "PriceType":
-                    if (!item) {
-                        break;
-                    }
-                    switch (value) {
-                        case "MINT":
-                            item.price_type = "ap";
-                            break;
-                        case "GOLD":
-                            item.price_type = "gold";
-                            break;
-                        default:
-                            console.warn(`Invalid PriceType "${value}" for item ${item?.id}`);
-                    }
-                    break;
-                case "Price0":
-                    if (!item) {
-                        break;
-                    }
-                    item.price = parseInt(value);
-                    break;
-                case "Enable":
-                    if (!item) {
-                        break;
-                    }
-                    item.available_in_shop = !!parseInt(value);
-                    break;
-                case "Name":
-                    if (!item) {
-                        break;
-                    }
-                    item.name_shop = value;
-                    break;
+    let currentIndex = 0;
+    for (const match of data.matchAll(/<Product DISPLAY="\d+" HIT_DISPLAY="\d+" Index="(?<index>\d+)" Enable="(?<enabled>0|1)" New="\d+" Hit="\d+" Free="\d+" Sale="\d+" Event="\d+" Couple="\d+" Nobuy="\d+" Rand="[^"]+" UseType="[^"]+" Use0="\d+" Use1="\d+" Use2="\d+" PriceType="(?<price_type>(?:MINT)|(?:GOLD))" OldPrice0="-?\d+" OldPrice1="-?\d+" OldPrice2="-?\d+" Price0="(?<price>-?\d+)" Price1="-?\d+" Price2="-?\d+" CouplePrice="-?\d+" Category="[^"]*" Name="(?<name>[^"]*)" GoldBack="-?\d+" EnableParcel="(?<parcel_from_shop>0|1)" Char="-?\d+" Item0="(?<item0>-?\d+)" Item1="(?<item1>-?\d+)" Item2="(?<item2>-?\d+)" Item3="(?<item3>-?\d+)" Item4="(?<item4>-?\d+)" Item5="(?<item5>-?\d+)" Item6="(?<item6>-?\d+)" Item7="(?<item7>-?\d+)" Item8="(?<item8>-?\d+)" Item9="(?<item9>-?\d+)" (?:Icon="[^"]*" )?(?:Name_kr="[^"]*" )?(?:Name_en="[^"]*" )?(?:Name_th="[^"]*" )?\/>/g)) {
+        if (!match.groups) {
+            continue;
+        }
+        const index = parseInt(match.groups.index);
+        if (currentIndex + 1 !== index) {
+            console.warn(`Failed parsing shop item index ${currentIndex + 2 === index ? currentIndex + 1 : `${currentIndex + 1} to ${index - 1}`}`);
+        }
+        currentIndex = index;
+        const enabled = !!parseInt(match.groups.enabled);
+        if (!enabled) {
+            continue;
+        }
+        const price_type: "ap" | "gold" | "none" = match.groups.price_type === "MINT" ? "ap" : match.groups.price_type === "GOLD" ? "gold" : "none";
+        const price = parseInt(match.groups.price);
+        const name = match.groups.name;
+        const parcel_from_shop = !!parseInt(match.groups.parcel_from_shop);
+        const itemIDs = [
+            parseInt(match.groups.item0),
+            parseInt(match.groups.item1),
+            parseInt(match.groups.item2),
+            parseInt(match.groups.item3),
+            parseInt(match.groups.item4),
+            parseInt(match.groups.item5),
+            parseInt(match.groups.item6),
+            parseInt(match.groups.item7),
+            parseInt(match.groups.item8),
+            parseInt(match.groups.item9),
+        ];
+        for (const itemID of itemIDs) {
+            if (itemID === 0) {
+                continue;
             }
+            const item = items.get(itemID);
+            if (!item) {
+                console.warn(`Found item ${itemID} in shop but not in item list`);
+                continue;
+            }
+            item.sources.push(new ItemSource(name, price, price_type === "ap"));
         }
     }
 }
@@ -290,7 +321,7 @@ export async function downloadItems() {
     console.log(`Loaded ${items.size} items`);
 }
 
-function itemToTableRow(item: Item): HTMLTableRowElement {
+function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean): HTMLTableRowElement {
     //Name
     //Character
     //Part
@@ -305,16 +336,6 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
     //Serve
     //Max level
 
-    const priceString = (item: Item) => {
-        switch (item.price_type) {
-            case "gold":
-                return `${item.price} gold`;
-            case "ap":
-                return `${item.price} ap`;
-        }
-        return "";
-    }
-
     const nameString = (item: Item) => {
         if (item.name_shop !== item.name_en) {
             return item.name_en + "/" + item.name_shop;
@@ -325,6 +346,7 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
     const row = createHTML(
         ["tr",
             ["td", item.name_en],
+            ["td", `${item.id}`],
             ["td", item.character],
             ["td", item.part],
             ["td", `${item.str}`],
@@ -337,13 +359,14 @@ function itemToTableRow(item: Item): HTMLTableRowElement {
             ["td", `${item.lob}`],
             ["td", `${item.serve}`],
             ["td", `${item.level}`],
-            ["td", priceString(item)],
+            ["td", item.sources.filter(sourceFilter).map(item => item.display_string()).join(", "),
+            ]
         ]
     );
     return row;
 }
 
-export function getResultsTable(filter: (item: Item) => boolean, priorizer: (items: Item[], item: Item) => Item[]): HTMLTableElement {
+export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (itemSource: ItemSource) => boolean, priorizer: (items: Item[], item: Item) => Item[]): HTMLTableElement {
     const results: { [key: string]: Item[] } = {
         "Hat": [],
         "Hair": [],
@@ -380,8 +403,10 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
             ["col"],
             ["col"],
             ["col"],
+            ["col"],
             ["tr",
                 ["th", "Name"],
+                ["th", "ID"],
                 ["th", "Character"],
                 ["th", "Part"],
                 ["th", "Str"],
@@ -394,13 +419,13 @@ export function getResultsTable(filter: (item: Item) => boolean, priorizer: (ite
                 ["th", "Lob"],
                 ["th", "Serve"],
                 ["th", "Level"],
-                ["th", "Price"],
+                ["th", "Source"],
             ]
         ]
     );
     for (const result of Object.values(results)) {
         for (const item of result) {
-            table.appendChild(itemToTableRow(item));
+            table.appendChild(itemToTableRow(item, sourceFilter));
         }
     }
     return table;

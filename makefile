@@ -13,8 +13,8 @@ release: browserified.js
 	$(MINIFY) $< -cm > script.js
 
 .PHONY: debug
-debug: browserified.js
-	$(CP) $< script.js
+debug: main.js
+	$(BROWSERIFY) -d $< > script.js
 
 browserified.js: main.js
 	$(BROWSERIFY) $< > $@
@@ -24,4 +24,4 @@ $(patsubst %.ts,%.js,$(wildcard *.ts)) &: *.ts tsconfig.json makefile
 
 .PHONY: clean
 clean:
-	$(RM) *.js *.map $(ANTLR_FILES)
+	$(RM) *.js *.map

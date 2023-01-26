@@ -1,5 +1,5 @@
 import { makeCheckboxTree, TreeNode, getLeafStates } from './checkboxTree';
-import { downloadItems, getResultsTable, Item, getMaxItemLevel } from './itemLookup';
+import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel } from './itemLookup';
 
 const characterFilters = [
     "Characters", [
@@ -154,6 +154,7 @@ function compare(lhs: number, rhs: number) {
 
 function updateResults() {
     const filters: ((item: Item) => boolean)[] = [];
+    const sourceFilters: ((itemSource: ItemSource) => boolean)[] = [];
 
     { //character filter
         const characterFilterList = document.getElementById("characterFilters")?.children[0];
@@ -184,10 +185,10 @@ function updateResults() {
         }
         const availabilityStates = getLeafStates(availabilityFilterList);
         if (!availabilityStates["Gold"]) {
-            filters.push(item => item.price_type !== "gold");
+            sourceFilters.push(itemSource => !itemSource.is_gold);
         }
         if (!availabilityStates["AP"]) {
-            filters.push(item => item.price_type !== "ap");
+            sourceFilters.push(itemSource => !itemSource.is_ap);
         }
         if (!availabilityStates["Parcel enabled"]) {
             filters.push(item => !item.parcel_enabled);
@@ -196,7 +197,7 @@ function updateResults() {
             filters.push(item => item.parcel_enabled);
         }
         if (availabilityStates["Exclude unavailable items"]) {
-            filters.push(item => item.available_in_shop);
+            filters.push(item => item.sources.filter(source => sourceFilters.every(sourceFilter => sourceFilter(source))).length > 0);
         }
     }
 
@@ -264,6 +265,7 @@ function updateResults() {
 
     const table = getResultsTable(
         item => filters.every(filter => filter(item)),
+        itemSource => sourceFilters.every(filter => filter(itemSource)),
         (items, item) => {
             if (items.length === 0) {
                 return [item];
