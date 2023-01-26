@@ -29,3 +29,7 @@ li.dropzone:active {
     pointer-events: none;
     opacity: 0.4;
 }
+
+progress#progressbar {
+    flex-grow: 1;
+}

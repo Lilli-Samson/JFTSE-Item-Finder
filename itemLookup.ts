@@ -21,7 +21,11 @@ export class ItemSource {
             const price = Math.abs(this.price);
             return `${this.item_name ? `"${this.item_name}" ` : ""}Shop ${price} ${currency}${this.gacha_factor ? ` x ${this.gacha_factor} ≈ ${this.gacha_factor * price} ${currency}` : ""}`;
         }
-        return `${this.item_name} x ${this.gacha_factor}`;
+        let gf = this.gacha_factor.toFixed(1);
+        if (gf.endsWith(".0")) {
+            gf = gf.substring(0, gf.length - 2);
+        }
+        return `${this.item_name} x ${gf}`;
     }
     get is_ap(): boolean {
         return this.price < 0;
@@ -78,6 +82,7 @@ export class Item {
 }
 
 let items = new Map<number, Item>();
+let gachas: { name: string, id: number }[] = [];
 
 function parseItemData(data: string) {
     if (data.length < 1000) {
@@ -273,17 +278,21 @@ function parseShopData(data: string) {
             debugShopParsing && console.warn(`Failed parsing shop item index ${currentIndex + 2 === index ? currentIndex + 1 : `${currentIndex + 1} to ${index - 1}`}`);
         }
         currentIndex = index;
+        const name = match.groups.name;
+        const category = match.groups.category;
+        if (category === "LOTTERY") {
+            gachas.push({ name: name, id: parseInt(match.groups.item0) });
+            continue;
+        }
+        if (category !== "PARTS") {
+            continue;
+        }
         const enabled = !!parseInt(match.groups.enabled);
         if (!enabled) {
             continue;
         }
-        const category = match.groups.category;
-        if (category !== "PARTS" && category !== "LOTTERY") {
-            continue;
-        }
         const price_type: "ap" | "gold" | "none" = match.groups.price_type === "MINT" ? "ap" : match.groups.price_type === "GOLD" ? "gold" : "none";
         const price = parseInt(match.groups.price);
-        const name = match.groups.name;
         const parcel_from_shop = !!parseInt(match.groups.parcel_from_shop);
         const itemIDs = [
             parseInt(match.groups.item0),
@@ -313,7 +322,39 @@ function parseShopData(data: string) {
     console.log(`Found ${count} shop items`);
 }
 
-async function download(url: string) {
+function parseGachaData(data: string, name: string) {
+    const gacha_results: { id: number, chance: number }[] = [];
+    for (const match of data.matchAll(/<LotteryItem_Niki Index="\d+" _Name_="[^"]*" ShopIndex="(?<itemid>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)" Effect="\d+" ProductOpt="\d+"\/>/g)) {
+        if (!match.groups) {
+            continue;
+        }
+        gacha_results.push({ id: parseInt(match.groups.itemid), chance: parseFloat(match.groups.probability) });
+    }
+    const total_probability = gacha_results.map(gacha_result => gacha_result.chance).reduce((prev, curr) => prev + curr, 0);
+    for (const gacha_result of gacha_results) {
+        const item = items.get(gacha_result.id);
+        if (!item) {
+            continue;
+        }
+        item.sources.push(new ItemSource(name, 0, false, total_probability / gacha_result.chance));
+    }
+}
+
+async function download(url: string, value: number | undefined = undefined, max_value: number | undefined = undefined) {
+    const filename = url.slice(url.lastIndexOf("/") + 1);
+    const element = document.getElementById("loading");
+    if (element instanceof HTMLLegendElement) {
+        element.textContent = `Loading ${filename}, please wait...`;
+    }
+    const progressbar = document.getElementById("progressbar");
+    if (progressbar instanceof HTMLProgressElement) {
+        if (value) {
+            progressbar.value = value;
+        }
+        if (max_value) {
+            progressbar.max = max_value;
+        }
+    }
     const reply = await fetch(url);
     if (!reply.ok) {
         alert(`Failed downloading data from ${url}`);
@@ -322,10 +363,21 @@ async function download(url: string) {
 }
 
 export async function downloadItems() {
-    const itemData = await download("https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/Item_Parts_Ini3.xml");
-    const shopData = await download("https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/Shop_Ini3.xml");
+    let downloadCounter = 1;
+    const itemURL = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/Item_Parts_Ini3.xml";
+    const itemData = await download(itemURL, downloadCounter++);
+    const shopURL = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/Shop_Ini3.xml";
+    const shopData = await download(shopURL, downloadCounter++);
     parseItemData(itemData);
     parseShopData(shopData);
+    for (const gacha of gachas) {
+        try {
+            const gacha_url = `https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/lottery/Ini3_Lot_${`${gacha.id}`.padStart(2, "0")}.xml`;
+            parseGachaData(await download(gacha_url, downloadCounter++, gachas.length + 2), gacha.name);
+        } catch (e) {
+            continue;
+        }
+    }
     console.log(`Loaded ${items.size} items`);
 }
 

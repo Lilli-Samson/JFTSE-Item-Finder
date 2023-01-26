@@ -123,7 +123,7 @@ function applyDragDrop() {
 applyDragDrop();
 
 downloadItems().then(() => {
-    const element = document.getElementById("loading");
+    const element = document.getElementById("loading group");
     if (element) {
         element.hidden = true;
     }
