@@ -19,7 +19,7 @@ export class ItemSource {
         if (this.price) {
             const currency = this.is_ap ? "AP" : "Gold";
             const price = Math.abs(this.price);
-            return `${this.item_name} from shop for ${price} ${currency}${this.gacha_factor ? ` x ${this.gacha_factor} ≈ ${this.gacha_factor * price} ${currency}` : ""}`;
+            return `${this.item_name ? `"${this.item_name}" ` : ""}Shop ${price} ${currency}${this.gacha_factor ? ` x ${this.gacha_factor} ≈ ${this.gacha_factor * price} ${currency}` : ""}`;
         }
         return `${this.item_name} x ${this.gacha_factor}`;
     }
@@ -258,6 +258,7 @@ function parseItemData(data: string) {
 }
 
 function parseShopData(data: string) {
+    const debugShopParsing = false;
     if (data.length < 1000) {
         console.warn(`Shop file is only ${data.length} bytes long`);
     }
@@ -268,7 +269,7 @@ function parseShopData(data: string) {
         }
         const index = parseInt(match.groups.index);
         if (currentIndex + 1 !== index) {
-            console.warn(`Failed parsing shop item index ${currentIndex + 2 === index ? currentIndex + 1 : `${currentIndex + 1} to ${index - 1}`}`);
+            debugShopParsing && console.warn(`Failed parsing shop item index ${currentIndex + 2 === index ? currentIndex + 1 : `${currentIndex + 1} to ${index - 1}`}`);
         }
         currentIndex = index;
         const enabled = !!parseInt(match.groups.enabled);
@@ -297,10 +298,10 @@ function parseShopData(data: string) {
             }
             const item = items.get(itemID);
             if (!item) {
-                console.warn(`Found item ${itemID} in shop but not in item list`);
+                debugShopParsing && console.warn(`Found item ${itemID} in shop but not in item list`);
                 continue;
             }
-            item.sources.push(new ItemSource(name, price, price_type === "ap"));
+            item.sources.push(new ItemSource(name === item.name_en ? "" : name, price, price_type === "ap"));
         }
     }
 }
