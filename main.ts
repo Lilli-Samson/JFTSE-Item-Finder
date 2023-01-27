@@ -206,6 +206,15 @@ function updateResults() {
         }
         const maxLevel = parseInt(levelrange.value);
         filters.push((item: Item) => item.level <= maxLevel);
+
+        const namefilter = document.getElementById("nameFilter");
+        if (!(namefilter instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        const item_name = namefilter.value;
+        if (item_name) {
+            filters.push(item => item.name_en.includes(item_name));
+        }
     }
 
     const comparators: ((lhs: Item, rhs: Item) => number)[] = [];
@@ -304,4 +313,13 @@ function setMaxLevelDisplayUpdate() {
     callback();
 }
 
-setMaxLevelDisplayUpdate();
+function setDisplayUpdates() {
+    setMaxLevelDisplayUpdate();
+    const namefilter = document.getElementById("nameFilter");
+    if (!(namefilter instanceof HTMLElement)) {
+        throw "Internal error";
+    }
+    namefilter.addEventListener("input", updateResults);
+}
+
+setDisplayUpdates();

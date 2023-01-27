@@ -4,8 +4,6 @@ export type Character = "Niki" | "LunLun" | "Lucy" | "Shua" | "Dhanpir" | "Pochi
 
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
 
-type Source = "shop" | "guardian";
-
 export class ItemSource {
     constructor(item_name: string, price: number, ap: boolean = false, gacha_factor: number = 0) {
         this.item_name = item_name;
@@ -43,6 +41,7 @@ export class ItemSource {
 
 export class Item {
     id = 0;
+    shop_id = 0;
     name_kr = "";
     name_en = "";
     name_shop = "";
@@ -82,6 +81,7 @@ export class Item {
 }
 
 let items = new Map<number, Item>();
+let shop_items = new Map<number, Item>();
 let gachas: { name: string, id: number }[] = [];
 
 function parseItemData(data: string) {
@@ -310,12 +310,14 @@ function parseShopData(data: string) {
             if (itemID === 0) {
                 continue;
             }
-            const item = items.get(itemID);
+            let item = items.get(itemID);
             if (!item) {
-                debugShopParsing && console.warn(`Found item ${itemID} in shop but not in item list`);
-                continue;
+                item = new Item();
+                //todo: fill item
             }
             item.sources.push(new ItemSource(name === item.name_en ? "" : name, price, price_type === "ap"));
+            item.shop_id = index;
+            shop_items.set(item.shop_id, item);
         }
         count++;
     }
@@ -324,15 +326,15 @@ function parseShopData(data: string) {
 
 function parseGachaData(data: string, name: string) {
     const gacha_results: { id: number, chance: number }[] = [];
-    for (const match of data.matchAll(/<LotteryItem_Niki Index="\d+" _Name_="[^"]*" ShopIndex="(?<itemid>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)" Effect="\d+" ProductOpt="\d+"\/>/g)) {
+    for (const match of data.matchAll(/<LotteryItem_Niki Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)" Effect="\d+" ProductOpt="\d+"\/>/g)) {
         if (!match.groups) {
             continue;
         }
-        gacha_results.push({ id: parseInt(match.groups.itemid), chance: parseFloat(match.groups.probability) });
+        gacha_results.push({ id: parseInt(match.groups.shop_id), chance: parseFloat(match.groups.probability) });
     }
     const total_probability = gacha_results.map(gacha_result => gacha_result.chance).reduce((prev, curr) => prev + curr, 0);
     for (const gacha_result of gacha_results) {
-        const item = items.get(gacha_result.id);
+        const item = shop_items.get(gacha_result.id);
         if (!item) {
             continue;
         }
@@ -370,12 +372,13 @@ export async function downloadItems() {
     const shopData = await download(shopURL, downloadCounter++);
     parseItemData(itemData);
     parseShopData(shopData);
+    console.log(`Found ${gachas.length} gachas`);
     for (const gacha of gachas) {
+        const gacha_url = `https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/lottery/Ini3_Lot_${`${gacha.id}`.padStart(2, "0")}.xml`;
         try {
-            const gacha_url = `https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/lottery/Ini3_Lot_${`${gacha.id}`.padStart(2, "0")}.xml`;
             parseGachaData(await download(gacha_url, downloadCounter++, gachas.length + 2), gacha.name);
         } catch (e) {
-            continue;
+            console.warn(`Failed downloading ${gacha_url} because ${e}`);
         }
     }
     console.log(`Loaded ${items.size} items`);
