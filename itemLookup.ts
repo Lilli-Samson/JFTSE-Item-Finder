@@ -360,7 +360,7 @@ async function download(url: string, value: number | undefined = undefined, max_
     }
     const reply = await fetch(url);
     if (!reply.ok) {
-        console.error(`Failed downloading ${url}`);
+        return "";
     }
     return reply.text();
 }

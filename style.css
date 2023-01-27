@@ -13,6 +13,16 @@ div.rowlayout * {
     height: fit-content;
 }
 
+div#characterFilters {
+    display: inline-block;
+    height: fit-content;
+}
+
+.Radio {
+    display: inline-flex;
+    align-items: center;
+}
+
 li.dropzone {
     cursor: grab;
 }

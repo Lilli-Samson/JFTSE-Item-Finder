@@ -1,17 +1,8 @@
 import { makeCheckboxTree, TreeNode, getLeafStates } from './checkboxTree';
 import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel } from './itemLookup';
+import { createHTML } from './html';
 
-const characterFilters = [
-    "Characters", [
-        "Niki",
-        "LunLun",
-        "Lucy",
-        "Shua",
-        "Dhanpir",
-        "Pochi",
-        "Al",
-    ],
-];
+const characters = ["All", "Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al",];
 
 const partsFilter = [
     "Parts", [
@@ -67,8 +58,26 @@ function getName(node: HTMLInputElement): string | null | void {
 }
 
 function addFilterTrees() {
+    const target = document.getElementById("characterFilters");
+    if (!target) {
+        return;
+    }
+
+    let first = true;
+    for (const character of characters) {
+        const id = `characterSelectors_${character}`;
+        const radio_button = createHTML(["input", { id: id, type: "radio", name: "characterSelectors", value: character }]);
+        radio_button.addEventListener("input", updateResults);
+        target.appendChild(radio_button);
+        target.appendChild(createHTML(["label", { for: id }, character]));
+        target.appendChild(createHTML(["br"]));
+        if (first) {
+            radio_button.checked = true;
+            first = false;
+        }
+    }
+
     const filters: [TreeNode, string][] = [
-        [characterFilters, "characterFilters"],
         [partsFilter, "partsFilter"],
         [availabilityFilter, "availabilityFilter"],
     ];
@@ -156,14 +165,19 @@ function updateResults() {
     const sourceFilters: ((itemSource: ItemSource) => boolean)[] = [];
 
     { //character filter
-        const characterFilterList = document.getElementById("characterFilters")?.children[0];
-        if (!(characterFilterList instanceof HTMLUListElement)) {
-            throw "Internal error";
+        const characterFilterList = document.getElementsByName("characterSelectors");
+        for (const element of characterFilterList) {
+            if (!(element instanceof HTMLInputElement)) {
+                throw "Internal error";
+            }
+            if (element.checked) {
+                const selected_character = element.value;
+                if (selected_character !== "All") {
+                    filters.push(item => item.character === selected_character);
+                };
+                break;
+            }
         }
-        const characterStates = getLeafStates(characterFilterList);
-        filters.push((item: Item): boolean => {
-            return characterStates[item.character];
-        });
     }
 
     { //parts filter
