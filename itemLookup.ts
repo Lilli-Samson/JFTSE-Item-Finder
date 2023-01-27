@@ -269,7 +269,7 @@ function parseShopData(data: string) {
     }
     let count = 0;
     let currentIndex = 0;
-    for (const match of data.matchAll(/<Product DISPLAY="\d+" HIT_DISPLAY="\d+" Index="(?<index>\d+)" Enable="(?<enabled>0|1)" New="\d+" Hit="\d+" Free="\d+" Sale="\d+" Event="\d+" Couple="\d+" Nobuy="\d+" Rand="[^"]+" UseType="[^"]+" Use0="\d+" Use1="\d+" Use2="\d+" PriceType="(?<price_type>(?:MINT)|(?:GOLD))" OldPrice0="-?\d+" OldPrice1="-?\d+" OldPrice2="-?\d+" Price0="(?<price>-?\d+)" Price1="-?\d+" Price2="-?\d+" CouplePrice="-?\d+" Category="(?<category>[^"]*)" Name="(?<name>[^"]*)" GoldBack="-?\d+" EnableParcel="(?<parcel_from_shop>0|1)" Char="-?\d+" Item0="(?<item0>-?\d+)" Item1="(?<item1>-?\d+)" Item2="(?<item2>-?\d+)" Item3="(?<item3>-?\d+)" Item4="(?<item4>-?\d+)" Item5="(?<item5>-?\d+)" Item6="(?<item6>-?\d+)" Item7="(?<item7>-?\d+)" Item8="(?<item8>-?\d+)" Item9="(?<item9>-?\d+)" (?:Icon="[^"]*" ?)?(?:Name_kr="[^"]*" ?)?(?:Name_en="[^"]*" ?)?(?:Name_th="[^"]*" ?)?\/>/g)) {
+    for (const match of data.matchAll(/<Product DISPLAY="\d+" HIT_DISPLAY="\d+" Index="(?<index>\d+)" Enable="(?<enabled>0|1)" New="\d+" Hit="\d+" Free="\d+" Sale="\d+" Event="\d+" Couple="\d+" Nobuy="\d+" Rand="[^"]+" UseType="[^"]+" Use0="\d+" Use1="\d+" Use2="\d+" PriceType="(?<price_type>(?:MINT)|(?:GOLD))" OldPrice0="-?\d+" OldPrice1="-?\d+" OldPrice2="-?\d+" Price0="(?<price>-?\d+)" Price1="-?\d+" Price2="-?\d+" CouplePrice="-?\d+" Category="(?<category>[^"]*)" Name="(?<name>[^"]*)" GoldBack="-?\d+" EnableParcel="(?<parcel_from_shop>0|1)" Char="-?\d+" Item0="(?<item0>-?\d+)" Item1="(?<item1>-?\d+)" Item2="(?<item2>-?\d+)" Item3="(?<item3>-?\d+)" Item4="(?<item4>-?\d+)" Item5="(?<item5>-?\d+)" Item6="(?<item6>-?\d+)" Item7="(?<item7>-?\d+)" Item8="(?<item8>-?\d+)" Item9="(?<item9>-?\d+)" ?(?:Icon="[^"]*" ?)?(?:Name_kr="[^"]*" ?)?(?:Name_en="(?<name_en>[^"]*)" ?)?(?:Name_th="[^"]*" ?)?\/>/g)) {
         if (!match.groups) {
             continue;
         }
@@ -282,15 +282,11 @@ function parseShopData(data: string) {
         const category = match.groups.category;
         if (category === "LOTTERY") {
             gachas.push({ name: name, id: parseInt(match.groups.item0) });
-            continue;
         }
-        if (category !== "PARTS") {
+        if (category === "GUILD") {
             continue;
         }
         const enabled = !!parseInt(match.groups.enabled);
-        if (!enabled) {
-            continue;
-        }
         const price_type: "ap" | "gold" | "none" = match.groups.price_type === "MINT" ? "ap" : match.groups.price_type === "GOLD" ? "gold" : "none";
         const price = parseInt(match.groups.price);
         const parcel_from_shop = !!parseInt(match.groups.parcel_from_shop);
@@ -313,9 +309,12 @@ function parseShopData(data: string) {
             let item = items.get(itemID);
             if (!item) {
                 item = new Item();
-                //todo: fill item
+                item.name_en = match.groups.name_en ?? "";
+                //todo: fill rest of item
             }
-            item.sources.push(new ItemSource(name === item.name_en ? "" : name, price, price_type === "ap"));
+            if (enabled) {
+                item.sources.push(new ItemSource(name === item.name_en ? "" : name, price, price_type === "ap"));
+            }
             item.shop_id = index;
             shop_items.set(item.shop_id, item);
         }
@@ -326,7 +325,7 @@ function parseShopData(data: string) {
 
 function parseGachaData(data: string, name: string) {
     const gacha_results: { id: number, chance: number }[] = [];
-    for (const match of data.matchAll(/<LotteryItem_Niki Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)" Effect="\d+" ProductOpt="\d+"\/>/g)) {
+    for (const match of data.matchAll(/<LotteryItem_[^ ]* Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)" Effect="\d+" ProductOpt="\d+"\/>/g)) {
         if (!match.groups) {
             continue;
         }
@@ -336,6 +335,7 @@ function parseGachaData(data: string, name: string) {
     for (const gacha_result of gacha_results) {
         const item = shop_items.get(gacha_result.id);
         if (!item) {
+            console.warn(`Failed to find item ${gacha_result.id} from "${name}" in shop`);
             continue;
         }
         item.sources.push(new ItemSource(name, 0, false, total_probability / gacha_result.chance));

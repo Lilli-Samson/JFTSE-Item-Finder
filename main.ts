@@ -40,8 +40,8 @@ const availabilityFilter = [
         "Shop", [
             "Gold",
             "AP",
-            "-Allow gacha",
         ],
+        "Allow gacha",
         "-Guardian",
         "Parcel enabled",
         "Parcel disabled",
@@ -193,6 +193,9 @@ function updateResults() {
         }
         if (!availabilityStates["Parcel disabled"]) {
             filters.push(item => item.parcel_enabled);
+        }
+        if (!availabilityStates["Allow gacha"]) {
+            sourceFilters.push(itemSource => !itemSource.is_gacha);
         }
         if (availabilityStates["Exclude unavailable items"]) {
             filters.push(item => item.sources.filter(source => sourceFilters.every(sourceFilter => sourceFilter(source))).length > 0);
