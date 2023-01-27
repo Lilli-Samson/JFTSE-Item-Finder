@@ -123,18 +123,16 @@ function applyDragDrop() {
 applyDragDrop();
 
 downloadItems().then(() => {
-    const element = document.getElementById("loading group");
-    if (element) {
-        element.hidden = true;
-    }
-
-    for (const name of ["filter group", "priority group", "results group"]) {
-        const element = document.getElementById(name);
-        if (element) {
+    for (const element of document.getElementsByClassName("show_after_load")) {
+        if (element instanceof HTMLElement) {
             element.hidden = false;
         }
     }
-
+    for (const element of document.getElementsByClassName("hide_after_load")) {
+        if (element instanceof HTMLElement) {
+            element.hidden = true;
+        }
+    }
     const levelrange = document.getElementById("levelrange");
     if (!(levelrange instanceof HTMLInputElement)) {
         throw "Internal error";
