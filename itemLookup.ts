@@ -41,7 +41,6 @@ export class ItemSource {
 
 export class Item {
     id = 0;
-    shop_id = 0;
     name_kr = "";
     name_en = "";
     name_shop = "";
@@ -283,9 +282,6 @@ function parseShopData(data: string) {
         if (category === "LOTTERY") {
             gachas.push({ name: name, id: parseInt(match.groups.item0) });
         }
-        if (category === "GUILD") {
-            continue;
-        }
         const enabled = !!parseInt(match.groups.enabled);
         const price_type: "ap" | "gold" | "none" = match.groups.price_type === "MINT" ? "ap" : match.groups.price_type === "GOLD" ? "gold" : "none";
         const price = parseInt(match.groups.price);
@@ -306,17 +302,22 @@ function parseShopData(data: string) {
             if (itemID === 0) {
                 continue;
             }
-            let item = items.get(itemID);
-            if (!item) {
-                item = new Item();
-                item.name_en = match.groups.name_en ?? "";
-                //todo: fill rest of item
+            let oldItem = items.get(itemID);
+            const newItem = new Item();
+            newItem.name_en = match.groups.name_en ?? "";
+            //todo: fill rest of item
+            if (!oldItem) {
+                oldItem = newItem;
             }
-            if (enabled) {
-                item.sources.push(new ItemSource(name === item.name_en ? "" : name, price, price_type === "ap"));
+            if (category === "PARTS") {
+                if (enabled) {
+                    oldItem.sources.push(new ItemSource(name === newItem.name_en ? "" : name, price, price_type === "ap"));
+                }
+                shop_items.set(index, oldItem);
             }
-            item.shop_id = index;
-            shop_items.set(item.shop_id, item);
+            else {
+                shop_items.set(index, newItem);
+            }
         }
         count++;
     }
@@ -359,22 +360,24 @@ async function download(url: string, value: number | undefined = undefined, max_
     }
     const reply = await fetch(url);
     if (!reply.ok) {
-        alert(`Failed downloading data from ${url}`);
+        console.error(`Failed downloading ${url}`);
     }
     return reply.text();
 }
 
 export async function downloadItems() {
+    const itemSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res";
+    const gachaSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/lottery";
     let downloadCounter = 1;
-    const itemURL = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/Item_Parts_Ini3.xml";
+    const itemURL = itemSource + "/Item_Parts_Ini3.xml";
     const itemData = await download(itemURL, downloadCounter++);
-    const shopURL = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/Shop_Ini3.xml";
+    const shopURL = itemSource + "/Shop_Ini3.xml";
     const shopData = await download(shopURL, downloadCounter++);
     parseItemData(itemData);
     parseShopData(shopData);
     console.log(`Found ${gachas.length} gachas`);
     for (const gacha of gachas) {
-        const gacha_url = `https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/lottery/Ini3_Lot_${`${gacha.id}`.padStart(2, "0")}.xml`;
+        const gacha_url = `${gachaSource}/Ini3_Lot_${`${gacha.id}`.padStart(2, "0")}.xml`;
         try {
             parseGachaData(await download(gacha_url, downloadCounter++, gachas.length + 2), gacha.name);
         } catch (e) {
@@ -421,6 +424,7 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
             ["td", `${item.charge}`],
             ["td", `${item.lob}`],
             ["td", `${item.serve}`],
+            ["td", `${item.hp}`],
             ["td", `${item.level}`],
             ["td", item.sources.filter(sourceFilter).map(item => item.display_string()).join(", "),
             ]
@@ -467,6 +471,7 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
             ["col"],
             ["col"],
             ["col"],
+            ["col"],
             ["tr",
                 ["th", "Name"],
                 ["th", "ID"],
@@ -481,6 +486,7 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
                 ["th", "Charge"],
                 ["th", "Lob"],
                 ["th", "Serve"],
+                ["th", "HP"],
                 ["th", "Level"],
                 ["th", "Source"],
             ]

@@ -43,3 +43,7 @@ div#loading_group * {
 progress#progressbar {
     flex-grow: 1;
 }
+
+table tr:nth-child(even) td {
+    background-color: aliceblue;
+}

@@ -46,6 +46,7 @@ const availabilityFilter = [
         "Parcel enabled",
         "Parcel disabled",
         "Exclude unavailable items",
+        "Exclude statless items",
     ],
 ];
 
@@ -196,6 +197,9 @@ function updateResults() {
         }
         if (!availabilityStates["Allow gacha"]) {
             sourceFilters.push(itemSource => !itemSource.is_gacha);
+        }
+        if (availabilityStates["Exclude statless items"]) {
+            filters.push(item => !!item.buffslots || !!item.charge || !!item.dex || !!item.hp || !!item.lob || !!item.movement || !!item.quickslots || !!item.serve || !!item.smash || !!item.sta || !!item.str || !!item.wil);
         }
         if (availabilityStates["Exclude unavailable items"]) {
             filters.push(item => item.sources.filter(source => sourceFilters.every(sourceFilter => sourceFilter(source))).length > 0);
