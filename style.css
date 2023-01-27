@@ -30,6 +30,16 @@ li.dropzone:active {
     opacity: 0.4;
 }
 
+div#loading_group {
+    display: grid;
+    width: max-content;
+    height: max-content;
+}
+
+div#loading_group * {
+    display: grid;
+}
+
 progress#progressbar {
     flex-grow: 1;
 }

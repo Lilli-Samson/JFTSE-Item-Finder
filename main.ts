@@ -130,7 +130,7 @@ downloadItems().then(() => {
     }
     for (const element of document.getElementsByClassName("hide_after_load")) {
         if (element instanceof HTMLElement) {
-            element.hidden = true;
+            element.style.display = "none";
         }
     }
     const levelrange = document.getElementById("levelrange");

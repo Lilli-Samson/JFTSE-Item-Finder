@@ -343,7 +343,7 @@ function parseGachaData(data: string, name: string) {
 async function download(url: string, value: number | undefined = undefined, max_value: number | undefined = undefined) {
     const filename = url.slice(url.lastIndexOf("/") + 1);
     const element = document.getElementById("loading");
-    if (element instanceof HTMLLegendElement) {
+    if (element instanceof HTMLElement) {
         element.textContent = `Loading ${filename}, please wait...`;
     }
     const progressbar = document.getElementById("progressbar");

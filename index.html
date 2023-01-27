@@ -8,11 +8,7 @@
 </head>
 
 <body>
-    <fieldset id="loading group" class="hide_after_load">
-        <legend id="loading">Loading, please wait...</legend>
-        <progress id="progressbar" max="100" value="0"></progress>
-    </fieldset>
-    <fieldset id="filter group" class="show_after_load" hidden>
+    <fieldset id="filter group">
         <legend>Filter</legend>
         <div id="characterFilters"></div>
         <div id="partsFilter"></div>
@@ -26,7 +22,7 @@
             </div>
         </div>
     </fieldset>
-    <fieldset id="priority group" class="show_after_load" hidden>
+    <fieldset id="priority group">
         <legend>Sort Priority</legend>
         <ol reversed id="priority list">
             <li class="dropzone" draggable="true">Movement Speed</li>
@@ -46,9 +42,13 @@
             -->
         </ol>
     </fieldset>
-    <fieldset id="results group" class="show_after_load" hidden>
+    <fieldset id="results group">
         <legend>Results</legend>
-        <div id="results"></div>
+        <div id="loading_group" class="hide_after_load">
+            <label for="progressbar" id="loading">Loading, please wait...</label>
+            <progress id="progressbar" max="100" value="0"></progress>
+        </div>
+        <div id="results" class="show_after_load" hidden></div>
     </fieldset>
     <script src="script.js"></script>
 </body>
@@ -69,7 +69,6 @@
             <li>Add stat distribution function</li>
             <li>Remember selection on reload</li>
             <li>Automatically reload page when source changes (either FT update or Item Finder update)</li>
-            <li>(currently in progress!) Proper loading page while sources are being downloaded</li>
         </ul>
     </fieldset>
     <p>Like it? Give gold to Kanone!<br>Hate it? Complain to Lilli on <a
