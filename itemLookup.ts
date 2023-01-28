@@ -1,6 +1,10 @@
 import { createHTML } from './html';
 
-export type Character = "Niki" | "LunLun" | "Lucy" | "Shua" | "Dhanpir" | "Pochi" | "Al";
+const characters = ["Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al"] as const;
+export type Character = typeof characters[number];
+function isCharacter(character: string): character is Character {
+    return (characters as unknown as string[]).includes(character);
+}
 
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
 
@@ -79,9 +83,47 @@ export class Item {
     sources: ItemSource[] = []
 }
 
+class Gacha {
+    constructor(shop_index: number, gacha_index: number, name: string) {
+        this.shop_index = shop_index;
+        this.gacha_index = gacha_index;
+        this.name = name;
+        for (const character of characters) {
+            this.shop_items.set(character, new Map</*shop_id:*/ number, /*probability:*/ number>())
+        }
+    }
+
+    add(shop_index: number, probability: number, character: Character) {
+        this.shop_items.get(character)!.set(shop_index, probability);
+        this.character_probability.set(character, probability + (this.character_probability.get(character) || 0));
+    }
+
+    average_tries(shop_index: number, character: Character | undefined = undefined) {
+        const chars: readonly Character[] = character ? ([character]) : characters;
+        const probability = chars.reduce((p, character) => p + (this.shop_items.get(character)!.get(shop_index) || 0), 0);
+        if (probability === 0) {
+            return 0;
+        }
+        const total_probability = chars.reduce((p, character) => p + this.character_probability.get(character)!, 0);
+        return total_probability / probability;
+    }
+
+    shop_index: number;
+    gacha_index: number;
+    name: string;
+    character_probability = new Map<Character, number>();
+    shop_items = new Map<Character, Map</*shop_id:*/ number, /*probability:*/ number>>();
+}
+
+const things = ["One thing", "Another thing", "Yet another thing"] as const;
+type Thing = typeof things[number];
+function f(thing: Thing | undefined) {
+    const thinglist: readonly Thing[] = thing ? [thing] : things;
+}
+
 let items = new Map<number, Item>();
 let shop_items = new Map<number, Item>();
-let gachas: { name: string, id: number }[] = [];
+let gachas: Gacha[] = [];
 
 function parseItemData(data: string) {
     if (data.length < 1000) {
@@ -280,7 +322,7 @@ function parseShopData(data: string) {
         const name = match.groups.name;
         const category = match.groups.category;
         if (category === "LOTTERY") {
-            gachas.push({ name: name, id: parseInt(match.groups.item0) });
+            gachas.push(new Gacha(index, parseInt(match.groups.item0), name));
         }
         const enabled = !!parseInt(match.groups.enabled);
         const price_type: "ap" | "gold" | "none" = match.groups.price_type === "MINT" ? "ap" : match.groups.price_type === "GOLD" ? "gold" : "none";
@@ -324,22 +366,30 @@ function parseShopData(data: string) {
     console.log(`Found ${count} shop items`);
 }
 
-function parseGachaData(data: string, name: string) {
-    const gacha_results: { id: number, chance: number }[] = [];
-    for (const match of data.matchAll(/<LotteryItem_[^ ]* Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)" Effect="\d+" ProductOpt="\d+"\/>/g)) {
+function parseGachaData(data: string, gacha: Gacha) {
+    for (const match of data.matchAll(/<LotteryItem_(?<character>[^ ]*) Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)" Effect="\d+" ProductOpt="\d+"\/>/g)) {
         if (!match.groups) {
             continue;
         }
-        gacha_results.push({ id: parseInt(match.groups.shop_id), chance: parseFloat(match.groups.probability) });
-    }
-    const total_probability = gacha_results.map(gacha_result => gacha_result.chance).reduce((prev, curr) => prev + curr, 0);
-    for (const gacha_result of gacha_results) {
-        const item = shop_items.get(gacha_result.id);
-        if (!item) {
-            console.warn(`Failed to find item ${gacha_result.id} from "${name}" in shop`);
+        let character = match.groups.character;
+        if (character === "Lunlun") {
+            character = "LunLun";
+        }
+        if (!isCharacter(character)) {
+            console.warn(`Found unknown character "${character} in lottery file ${gacha.gacha_index}`);
             continue;
         }
-        item.sources.push(new ItemSource(name, 0, false, total_probability / gacha_result.chance));
+        gacha.add(parseInt(match.groups.shop_id), parseFloat(match.groups.probability), character);
+    }
+    for (const [character, map] of gacha.shop_items) {
+        for (const [shop_id, probability] of map) {
+            const item = shop_items.get(shop_id);
+            if (!item) {
+                console.warn(`Failed to find item ${shop_id} from "${gacha.name}" in shop`);
+                continue;
+            }
+            item.sources.push(new ItemSource(gacha.name, 0, false, gacha.average_tries(shop_id, character)));
+        }
     }
 }
 
@@ -377,9 +427,9 @@ export async function downloadItems() {
     parseShopData(shopData);
     console.log(`Found ${gachas.length} gachas`);
     for (const gacha of gachas) {
-        const gacha_url = `${gachaSource}/Ini3_Lot_${`${gacha.id}`.padStart(2, "0")}.xml`;
+        const gacha_url = `${gachaSource}/Ini3_Lot_${`${gacha.gacha_index}`.padStart(2, "0")}.xml`;
         try {
-            parseGachaData(await download(gacha_url, downloadCounter++, gachas.length + 2), gacha.name);
+            parseGachaData(await download(gacha_url, downloadCounter++, gachas.length + 2), gacha);
         } catch (e) {
             console.warn(`Failed downloading ${gacha_url} because ${e}`);
         }
