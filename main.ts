@@ -1,5 +1,5 @@
 import { makeCheckboxTree, TreeNode, getLeafStates } from './checkboxTree';
-import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel } from './itemLookup';
+import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items } from './itemLookup';
 import { createHTML } from './html';
 
 const characters = ["All", "Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al",];
@@ -41,21 +41,7 @@ const availabilityFilter = [
     ],
 ];
 
-function getName(node: HTMLInputElement): string | null | void {
-    const parent = node.parentElement;
-    if (!(parent instanceof HTMLUListElement)) {
-        return "";
-    }
-    let found = false;
-    for (const child of parent.children) {
-        if (found) {
-            return child.textContent;
-        }
-        if (child === node) {
-            found = true;
-        }
-    }
-}
+const excluded_item_ids = new Set<number>();
 
 function addFilterTrees() {
     const target = document.getElementById("characterFilters");
@@ -217,6 +203,24 @@ function updateResults() {
         }
     }
 
+    { //id filter
+        filters.push(item => !excluded_item_ids.has(item.id));
+        const itemFilterList = document.getElementById("itemFilter");
+        if (!(itemFilterList instanceof HTMLDivElement)) {
+            throw "Internal error";
+
+        }
+        itemFilterList.innerHTML = "";
+        for (const id of excluded_item_ids) {
+            const item = items.get(id);
+            if (!item) {
+                continue;
+            }
+            itemFilterList.appendChild(createHTML(["div", createHTML(["button", { class: "item_removal_removal", "data-item_index": `${id}` }, "X"]), item.name_en]));
+        }
+
+    }
+
     const comparators: ((lhs: Item, rhs: Item) => number)[] = [];
 
     {
@@ -345,3 +349,23 @@ window.addEventListener("load", async () => {
     levelrange.dispatchEvent(new Event("input"));
     updateResults();
 });
+
+document.body.addEventListener('click', (event) => {
+    if (!(event.target instanceof HTMLElement)) {
+        return;
+    }
+    if (event.target.className === "item_removal") {
+        if (!event.target.dataset.item_index) {
+            return;
+        }
+        excluded_item_ids.add(parseInt(event.target.dataset.item_index));
+        updateResults();
+    }
+    else if (event.target.className === "item_removal_removal") {
+        if (!event.target.dataset.item_index) {
+            return;
+        }
+        excluded_item_ids.delete(parseInt(event.target.dataset.item_index));
+        updateResults();
+    }
+}, false);

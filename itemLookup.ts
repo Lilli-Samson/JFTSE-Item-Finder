@@ -121,7 +121,7 @@ function f(thing: Thing | undefined) {
     const thinglist: readonly Thing[] = thing ? [thing] : things;
 }
 
-let items = new Map<number, Item>();
+export let items = new Map<number, Item>();
 let shop_items = new Map<number, Item>();
 let gachas: Gacha[] = [];
 
@@ -437,6 +437,10 @@ export async function downloadItems() {
     console.log(`Loaded ${items.size} items`);
 }
 
+function deletableItem(name: string, id: number) {
+    return createHTML(["div", createHTML(["button", { class: "item_removal", "data-item_index": `${id}` }, "X"]), name]);
+}
+
 function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean): HTMLTableRowElement {
     //Name
     //Character
@@ -452,16 +456,9 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
     //Serve
     //Max level
 
-    const nameString = (item: Item) => {
-        if (item.name_shop !== item.name_en) {
-            return item.name_en + "/" + item.name_shop;
-        }
-        return item.name_en;
-    }
-
     const row = createHTML(
         ["tr",
-            ["td", item.name_en],
+            ["td", deletableItem(item.name_en, item.id)],
             ["td", `${item.id}`],
             ["td", item.character],
             ["td", item.part],
