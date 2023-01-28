@@ -57,3 +57,7 @@ progress#progressbar {
 table tr:nth-child(even) td {
     background-color: aliceblue;
 }
+
+#notice_group {
+    color: red;
+}

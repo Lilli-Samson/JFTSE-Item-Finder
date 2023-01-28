@@ -36,8 +36,8 @@ const availabilityFilter = [
         "-Guardian",
         "Parcel enabled",
         "Parcel disabled",
-        "Exclude unavailable items",
         "Exclude statless items",
+        "Exclude unavailable items",
     ],
 ];
 
