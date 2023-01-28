@@ -220,7 +220,7 @@ function updateResults() {
     const comparators: ((lhs: Item, rhs: Item) => number)[] = [];
 
     {
-        const priorityList = document.getElementById("priority list");
+        const priorityList = document.getElementById("priority_list");
         if (!(priorityList instanceof HTMLOListElement)) {
             throw "Internal error";
         }
