@@ -132,27 +132,6 @@ function applyDragDrop() {
 
 applyDragDrop();
 
-downloadItems().then(() => {
-    for (const element of document.getElementsByClassName("show_after_load")) {
-        if (element instanceof HTMLElement) {
-            element.hidden = false;
-        }
-    }
-    for (const element of document.getElementsByClassName("hide_after_load")) {
-        if (element instanceof HTMLElement) {
-            element.style.display = "none";
-        }
-    }
-    const levelrange = document.getElementById("levelrange");
-    if (!(levelrange instanceof HTMLInputElement)) {
-        throw "Internal error";
-    }
-    levelrange.max = `${getMaxItemLevel()}`;
-    levelrange.value = levelrange.max;
-    levelrange.dispatchEvent(new Event("input"));
-    updateResults();
-});
-
 function compare(lhs: number, rhs: number) {
     if (lhs == rhs) {
         return 0;
@@ -344,3 +323,25 @@ function setDisplayUpdates() {
 }
 
 setDisplayUpdates();
+
+window.addEventListener("load", async () => {
+    await downloadItems();
+    for (const element of document.getElementsByClassName("show_after_load")) {
+        if (element instanceof HTMLElement) {
+            element.hidden = false;
+        }
+    }
+    for (const element of document.getElementsByClassName("hide_after_load")) {
+        if (element instanceof HTMLElement) {
+            element.style.display = "none";
+        }
+    }
+    const levelrange = document.getElementById("levelrange");
+    if (!(levelrange instanceof HTMLInputElement)) {
+        throw "Internal error";
+    }
+    levelrange.max = `${getMaxItemLevel()}`;
+    levelrange.value = levelrange.max;
+    levelrange.dispatchEvent(new Event("input"));
+    updateResults();
+});
