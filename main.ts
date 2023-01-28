@@ -234,7 +234,7 @@ function updateResults() {
         }
         const item_name = namefilter.value;
         if (item_name) {
-            filters.push(item => item.name_en.includes(item_name));
+            filters.push(item => item.name_en.toLowerCase().includes(item_name.toLowerCase()));
         }
     }
 
