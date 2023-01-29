@@ -1,5 +1,5 @@
 import { makeCheckboxTree, TreeNode, getLeafStates } from './checkboxTree';
-import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items } from './itemLookup';
+import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, shop_items } from './itemLookup';
 import { createHTML } from './html';
 
 const characters = ["All", "Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al",];
@@ -33,7 +33,7 @@ const availabilityFilter = [
             "AP",
         ],
         "Allow gacha",
-        "-Guardian",
+        "Guardian",
         "Parcel enabled",
         "Parcel disabled",
         "Exclude statless items",
@@ -177,6 +177,19 @@ function updateResults() {
         }
         if (availabilityStates["Exclude statless items"]) {
             filters.push(item => !!item.buffslots || !!item.charge || !!item.dex || !!item.hp || !!item.lob || !!item.movement || !!item.quickslots || !!item.serve || !!item.smash || !!item.sta || !!item.str || !!item.wil);
+        }
+        if (!availabilityStates["Guardian"]) {
+            function available_without_guardian(itemSource: ItemSource): boolean {
+                if (itemSource.is_shop) {
+                    return true;
+                }
+                const item = shop_items.get(itemSource.shop_id);
+                if (!item) {
+                    return false;
+                }
+                return !item.sources.every(source => !available_without_guardian(source));
+            }
+            sourceFilters.push(itemSource => available_without_guardian(itemSource));
         }
         if (availabilityStates["Exclude unavailable items"]) {
             filters.push(item => item.sources.filter(source => sourceFilters.every(sourceFilter => sourceFilter(source))).length > 0);

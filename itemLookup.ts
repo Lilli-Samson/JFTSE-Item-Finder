@@ -1,3 +1,4 @@
+import { type } from 'os';
 import { createHTML } from './html';
 
 const characters = ["Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al"] as const;
@@ -9,8 +10,9 @@ function isCharacter(character: string): character is Character {
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
 
 export class ItemSource {
-    constructor(item_name: string, price: number, ap: boolean = false, gacha_factor: number = 0) {
+    constructor(item_name: string, shop_id: number, price: number, ap: boolean = false, gacha_factor: number = 0) {
         this.item_name = item_name;
+        this.shop_id = shop_id;
         this.price = price;
         if (ap) {
             this.price *= -1;
@@ -18,27 +20,39 @@ export class ItemSource {
         this.gacha_factor = gacha_factor;
     }
     display_string(): string {
-        if (this.price) {
+        if (this.is_gacha) {
+            let gf = this.gacha_factor.toFixed(1);
+            if (gf.endsWith(".0")) {
+                gf = gf.substring(0, gf.length - 2);
+            }
+            return `"${this.item_name}" x ${gf}`;
+        }
+        else if (this.is_guardian) {
+            return this.item_name;
+        }
+        else {
             const currency = this.is_ap ? "AP" : "Gold";
             const price = Math.abs(this.price);
             return `${this.item_name ? `"${this.item_name}" ` : ""}Shop ${price} ${currency}${this.gacha_factor ? ` x ${this.gacha_factor} ≈ ${this.gacha_factor * price} ${currency}` : ""}`;
         }
-        let gf = this.gacha_factor.toFixed(1);
-        if (gf.endsWith(".0")) {
-            gf = gf.substring(0, gf.length - 2);
-        }
-        return `${this.item_name} x ${gf}`;
     }
-    get is_ap(): boolean {
+    get is_ap() {
         return this.price < 0;
     }
-    get is_gold(): boolean {
+    get is_gold() {
         return this.price > 0;
     }
-    get is_gacha(): boolean {
-        return this.gacha_factor !== 0;
+    get is_gacha() {
+        return this.gacha_factor > 0;
+    }
+    get is_shop() {
+        return this.gacha_factor = 0;
+    }
+    get is_guardian() {
+        return this.gacha_factor < 0;
     }
     item_name: string;
+    shop_id: number;
     price: number;
     gacha_factor: number;
 }
@@ -115,14 +129,8 @@ class Gacha {
     shop_items = new Map<Character, Map</*shop_id:*/ number, /*probability:*/ number>>();
 }
 
-const things = ["One thing", "Another thing", "Yet another thing"] as const;
-type Thing = typeof things[number];
-function f(thing: Thing | undefined) {
-    const thinglist: readonly Thing[] = thing ? [thing] : things;
-}
-
 export let items = new Map<number, Item>();
-let shop_items = new Map<number, Item>();
+export let shop_items = new Map<number, Item>();
 let gachas: Gacha[] = [];
 
 function parseItemData(data: string) {
@@ -353,7 +361,7 @@ function parseShopData(data: string) {
             }
             if (category === "PARTS") {
                 if (enabled) {
-                    oldItem.sources.push(new ItemSource(name === newItem.name_en ? "" : name, price, price_type === "ap"));
+                    oldItem.sources.push(new ItemSource(name === newItem.name_en ? "" : name, index, price, price_type === "ap"));
                 }
                 shop_items.set(index, oldItem);
             }
@@ -388,7 +396,37 @@ function parseGachaData(data: string, gacha: Gacha) {
                 console.warn(`Failed to find item ${shop_id} from "${gacha.name}" in shop`);
                 continue;
             }
-            item.sources.push(new ItemSource(gacha.name, 0, false, gacha.average_tries(shop_id, character)));
+            item.sources.push(new ItemSource(gacha.name, shop_id, 0, false, gacha.average_tries(shop_id, character)));
+        }
+    }
+}
+
+function parseGuardianData(data: string) {
+    const guardianData = JSON.parse(data);
+    if (!Array.isArray(guardianData)) {
+        return;
+    }
+    for (const mapInfo of guardianData) {
+        if (typeof mapInfo !== "object") {
+            continue;
+        }
+        const map_name = mapInfo.Name;
+        if (typeof map_name !== "string") {
+            continue;
+        }
+        const rewards = mapInfo.Rewards;
+        if (!Array.isArray(rewards)) {
+            continue;
+        }
+        for (const shop_id of rewards) {
+            if (typeof shop_id !== "number") {
+                continue;
+            }
+            const item = shop_items.get(shop_id);
+            if (!item) {
+                continue;
+            }
+            item.sources.push(new ItemSource(map_name, shop_id, 0, false, -1));
         }
     }
 }
@@ -418,18 +456,22 @@ async function download(url: string, value: number | undefined = undefined, max_
 export async function downloadItems() {
     const itemSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res";
     const gachaSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/lottery";
+    const guardianSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/"
     let downloadCounter = 1;
     const itemURL = itemSource + "/Item_Parts_Ini3.xml";
     const itemData = await download(itemURL, downloadCounter++);
     const shopURL = itemSource + "/Shop_Ini3.xml";
     const shopData = await download(shopURL, downloadCounter++);
+    const guardianURL = guardianSource + "/GuardianStages.json";
+    const guardianData = await download(guardianURL, downloadCounter++);
     parseItemData(itemData);
     parseShopData(shopData);
+    parseGuardianData(guardianData);
     console.log(`Found ${gachas.length} gachas`);
     for (const gacha of gachas) {
         const gacha_url = `${gachaSource}/Ini3_Lot_${`${gacha.gacha_index}`.padStart(2, "0")}.xml`;
         try {
-            parseGachaData(await download(gacha_url, downloadCounter++, gachas.length + 2), gacha);
+            parseGachaData(await download(gacha_url, downloadCounter++, gachas.length + 3), gacha);
         } catch (e) {
             console.warn(`Failed downloading ${gacha_url} because ${e}`);
         }
