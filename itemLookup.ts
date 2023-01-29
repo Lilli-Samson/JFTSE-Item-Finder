@@ -563,6 +563,12 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
                 ["td", { class: "total Source_column" }],
             ]
         ));
+        for (const column_element of table.getElementsByClassName(`Character_column`)) {
+            if (!(column_element instanceof HTMLElement)) {
+                continue;
+            }
+            column_element.hidden = true;
+        }
     }
 
     for (const attribute of ["Str", "Sta", "Dex", "Wil", "Smash", "Movement", "Charge", "Lob", "Serve", "HP",] as const) {
