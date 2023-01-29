@@ -210,7 +210,9 @@ function updateResults() {
             throw "Internal error";
 
         }
-        itemFilterList.innerHTML = "";
+        for (const child of itemFilterList.children) {
+            child.remove();
+        }
         for (const id of excluded_item_ids) {
             const item = items.get(id);
             if (!item) {

@@ -473,8 +473,7 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
             ["td", `${item.serve}`],
             ["td", `${item.hp}`],
             ["td", `${item.level}`],
-            ["td", item.sources.filter(sourceFilter).map(item => item.display_string()).join(", "),
-            ]
+            ["td", item.sources.filter(sourceFilter).map(item => item.display_string()).join(", ")],
         ]
     );
     return row;
@@ -539,10 +538,61 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
             ]
         ]
     );
+    const statistics = {
+        "characters": new Set<Character>,
+        "Str": 0,
+        "Sta": 0,
+        "Dex": 0,
+        "Wil": 0,
+        "Smash": 0,
+        "Movement": 0,
+        "Charge": 0,
+        "Lob": 0,
+        "Serve": 0,
+        "HP": 0,
+        "Level": 0,
+    };
     for (const result of Object.values(results)) {
+        if (result.length === 0) {
+            continue;
+        }
+        statistics.Str += result[0].str;
+        statistics.Sta += result[0].sta;
+        statistics.Dex += result[0].dex;
+        statistics.Wil += result[0].wil;
+        statistics.Smash += result[0].smash;
+        statistics.Movement += result[0].movement;
+        statistics.Charge += result[0].charge;
+        statistics.Lob += result[0].lob;
+        statistics.Serve += result[0].serve;
+        statistics.HP += result[0].hp;
+        statistics.Level = Math.max(result[0].level, statistics.Level);
         for (const item of result) {
+            statistics.characters.add(item.character)
             table.appendChild(itemToTableRow(item, sourceFilter));
         }
+    }
+    if (statistics.characters.size === 1) {
+        table.appendChild(createHTML(
+            ["tr",
+                ["td", { class: "total" }, "Total:"],
+                ["td", { class: "total" }],
+                ["td", { class: "total" }],
+                ["td", { class: "total" }],
+                ["td", { class: "total" }, `${statistics.Str}`],
+                ["td", { class: "total" }, `${statistics.Sta}`],
+                ["td", { class: "total" }, `${statistics.Dex}`],
+                ["td", { class: "total" }, `${statistics.Wil}`],
+                ["td", { class: "total" }, `${statistics.Smash}`],
+                ["td", { class: "total" }, `${statistics.Movement}`],
+                ["td", { class: "total" }, `${statistics.Charge}`],
+                ["td", { class: "total" }, `${statistics.Lob}`],
+                ["td", { class: "total" }, `${statistics.Serve}`],
+                ["td", { class: "total" }, `${statistics.HP}`],
+                ["td", { class: "total" }, `${statistics.Level}`],
+                ["td", { class: "total" }],
+            ]
+        ));
     }
     return table;
 }
