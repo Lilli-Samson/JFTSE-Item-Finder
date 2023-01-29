@@ -151,9 +151,7 @@ function updateResults() {
             throw "Internal error";
         }
         const partsStates = getLeafStates(partsFilterList);
-        filters.push((item: Item): boolean => {
-            return partsStates[item.part];
-        });
+        filters.push(item => partsStates[item.part]);
     }
 
     { //availability filter

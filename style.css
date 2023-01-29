@@ -78,3 +78,7 @@ td.total {
 td.numeric {
     text-align: right;
 }
+
+ul.checkbox {
+    list-style-type: none;
+}
