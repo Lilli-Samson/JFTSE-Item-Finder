@@ -442,38 +442,24 @@ function deletableItem(name: string, id: number) {
 }
 
 function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean): HTMLTableRowElement {
-    //Name
-    //Character
-    //Part
-    //Str
-    //Sta
-    //Dex
-    //Wil
-    //Smash
-    //Movement
-    //Charge
-    //Lob
-    //Serve
-    //Max level
-
     const row = createHTML(
         ["tr",
-            ["td", deletableItem(item.name_en, item.id)],
-            ["td", { class: "numeric" }, `${item.id}`],
-            ["td", item.character],
-            ["td", item.part],
-            ["td", { class: "numeric" }, `${item.str}`],
-            ["td", { class: "numeric" }, `${item.sta}`],
-            ["td", { class: "numeric" }, `${item.dex}`],
-            ["td", { class: "numeric" }, `${item.wil}`],
-            ["td", { class: "numeric" }, `${item.smash}`],
-            ["td", { class: "numeric" }, `${item.movement}`],
-            ["td", { class: "numeric" }, `${item.charge}`],
-            ["td", { class: "numeric" }, `${item.lob}`],
-            ["td", { class: "numeric" }, `${item.serve}`],
-            ["td", { class: "numeric" }, `${item.hp}`],
-            ["td", { class: "numeric" }, `${item.level}`],
-            ["td", item.sources.filter(sourceFilter).map(item => item.display_string()).join(", ")],
+            ["td", { class: "Name_column" }, deletableItem(item.name_en, item.id)],
+            ["td", { class: "ID_column numeric" }, `${item.id}`],
+            ["td", { class: "Character_column" }, item.character],
+            ["td", { class: "Part_column" }, item.part],
+            ["td", { class: "Str_column numeric" }, `${item.str}`],
+            ["td", { class: "Sta_column numeric" }, `${item.sta}`],
+            ["td", { class: "Dex_column numeric" }, `${item.dex}`],
+            ["td", { class: "Wil_column numeric" }, `${item.wil}`],
+            ["td", { class: "Smash_column numeric" }, `${item.smash}`],
+            ["td", { class: "Movement_column numeric" }, `${item.movement}`],
+            ["td", { class: "Charge_column numeric" }, `${item.charge}`],
+            ["td", { class: "Lob_column numeric" }, `${item.lob}`],
+            ["td", { class: "Serve_column numeric" }, `${item.serve}`],
+            ["td", { class: "HP_column numeric" }, `${item.hp}`],
+            ["td", { class: "Level_column numeric" }, `${item.level}`],
+            ["td", { class: "Source_column" }, item.sources.filter(sourceFilter).map(item => item.display_string()).join(", ")],
         ]
     );
     return row;
@@ -502,39 +488,23 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
 
     const table = createHTML(
         ["table",
-            ["col"],
-            ["col", { class: "numeric" }],
-            ["col"],
-            ["col"],
-            ["col", { class: "numeric" }],
-            ["col", { class: "numeric" }],
-            ["col", { class: "numeric" }],
-            ["col", { class: "numeric" }],
-            ["col", { class: "numeric" }],
-            ["col", { class: "numeric" }],
-            ["col", { class: "numeric" }],
-            ["col", { class: "numeric" }],
-            ["col", { class: "numeric" }],
-            ["col", { class: "numeric" }],
-            ["col", { class: "numeric" }],
-            ["col"],
             ["tr",
-                ["th", "Name"],
-                ["th", "ID"],
-                ["th", "Character"],
-                ["th", "Part"],
-                ["th", "Str"],
-                ["th", "Sta"],
-                ["th", "Dex"],
-                ["th", "Wil"],
-                ["th", "Smash"],
-                ["th", "Movement"],
-                ["th", "Charge"],
-                ["th", "Lob"],
-                ["th", "Serve"],
-                ["th", "HP"],
-                ["th", "Level"],
-                ["th", "Source"],
+                ["th", { class: "Name_column" }, "Name"],
+                ["th", { class: "ID_column numeric" }, "ID"],
+                ["th", { class: "Character_column" }, "Character"],
+                ["th", { class: "Part_column" }, "Part"],
+                ["th", { class: "Str_column numeric" }, "Str"],
+                ["th", { class: "Sta_column numeric" }, "Sta"],
+                ["th", { class: "Dex_column numeric" }, "Dex"],
+                ["th", { class: "Wil_column numeric" }, "Wil"],
+                ["th", { class: "Smash_column numeric" }, "Smash"],
+                ["th", { class: "Movement_column numeric" }, "Movement"],
+                ["th", { class: "Charge_column numeric" }, "Charge"],
+                ["th", { class: "Lob_column numeric" }, "Lob"],
+                ["th", { class: "Serve_column numeric" }, "Serve"],
+                ["th", { class: "HP_column numeric" }, "HP"],
+                ["th", { class: "Level_column numeric" }, "Level"],
+                ["th", { class: "Source_column" }, "Source"],
             ]
         ]
     );
@@ -575,24 +545,35 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
     if (statistics.characters.size === 1) {
         table.appendChild(createHTML(
             ["tr",
-                ["td", { class: "total" }, "Total:"],
-                ["td", { class: "total numeric" }],
-                ["td", { class: "total" }],
-                ["td", { class: "total" }],
-                ["td", { class: "total numeric" }, `${statistics.Str}`],
-                ["td", { class: "total numeric" }, `${statistics.Sta}`],
-                ["td", { class: "total numeric" }, `${statistics.Dex}`],
-                ["td", { class: "total numeric" }, `${statistics.Wil}`],
-                ["td", { class: "total numeric" }, `${statistics.Smash}`],
-                ["td", { class: "total numeric" }, `${statistics.Movement}`],
-                ["td", { class: "total numeric" }, `${statistics.Charge}`],
-                ["td", { class: "total numeric" }, `${statistics.Lob}`],
-                ["td", { class: "total numeric" }, `${statistics.Serve}`],
-                ["td", { class: "total numeric" }, `${statistics.HP}`],
-                ["td", { class: "total numeric" }, `${statistics.Level}`],
-                ["td", { class: "total" }],
+                ["td", { class: "total Name_column" }, "Total:"],
+                ["td", { class: "total ID_column numeric" }],
+                ["td", { class: "total Character_column" }],
+                ["td", { class: "total Part_column" }],
+                ["td", { class: "total Str_column numeric" }, `${statistics.Str}`],
+                ["td", { class: "total Sta_column numeric" }, `${statistics.Sta}`],
+                ["td", { class: "total Dex_column numeric" }, `${statistics.Dex}`],
+                ["td", { class: "total Wil_column numeric" }, `${statistics.Wil}`],
+                ["td", { class: "total Smash_column numeric" }, `${statistics.Smash}`],
+                ["td", { class: "total Movement_column numeric" }, `${statistics.Movement}`],
+                ["td", { class: "total Charge_column numeric" }, `${statistics.Charge}`],
+                ["td", { class: "total Lob_column numeric" }, `${statistics.Lob}`],
+                ["td", { class: "total Serve_column numeric" }, `${statistics.Serve}`],
+                ["td", { class: "total HP_column numeric" }, `${statistics.HP}`],
+                ["td", { class: "total Level_column numeric" }, `${statistics.Level}`],
+                ["td", { class: "total Source_column" }],
             ]
         ));
+    }
+
+    for (const attribute of ["Str", "Sta", "Dex", "Wil", "Smash", "Movement", "Charge", "Lob", "Serve", "HP",] as const) {
+        if (statistics[attribute] === 0) {
+            for (const column_element of table.getElementsByClassName(`${attribute}_column`)) {
+                if (!(column_element instanceof HTMLElement)) {
+                    continue;
+                }
+                column_element.hidden = true;
+            }
+        }
     }
     return table;
 }
