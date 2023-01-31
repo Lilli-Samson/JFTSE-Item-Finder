@@ -72,6 +72,10 @@ td.numeric {
     text-align: right;
 }
 
+tr.highlighted {
+    font-weight: bold;
+}
+
 table th {
     text-align: left;
 }
@@ -95,4 +99,8 @@ ul.checkbox {
 
 a.popup_link {
     text-decoration-line: underline;
+}
+
+dialog {
+    width: fit-content;
 }

@@ -128,6 +128,7 @@ function compare(lhs: number, rhs: number) {
 function updateResults() {
     const filters: ((item: Item) => boolean)[] = [];
     const sourceFilters: ((itemSource: ItemSource) => boolean)[] = [];
+    let selected_character = "";
 
     { //character filter
         const characterFilterList = document.getElementsByName("characterSelectors");
@@ -136,7 +137,7 @@ function updateResults() {
                 throw "Internal error";
             }
             if (element.checked) {
-                const selected_character = element.value;
+                selected_character = element.value;
                 if (selected_character !== "All") {
                     filters.push(item => item.character === selected_character);
                 };
@@ -303,7 +304,8 @@ function updateResults() {
                 }
             }
             return [...items, item];
-        }
+        },
+        selected_character
     );
     const target = document.getElementById("results");
     if (!target) {

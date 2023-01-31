@@ -123,8 +123,20 @@ class Gacha {
 
 export let items = new Map<number, Item>();
 export let shop_items = new Map<number, Item>();
-let gachas: Gacha[] = [];
+let gachas = new Map<number, Gacha>();
 let dialog: HTMLDialogElement | undefined;
+
+function prettyNumber(n: number, digits: number) {
+    let s = n.toFixed(digits);
+    while (s.endsWith("0")) {
+        s = s.slice(0, -1);
+    }
+    if (s.endsWith(".")) {
+        s = s.slice(0, -1);
+    }
+    return s;
+}
+
 
 function parseItemData(data: string) {
     if (data.length < 1000) {
@@ -323,7 +335,7 @@ function parseShopData(data: string) {
         const name = match.groups.name;
         const category = match.groups.category;
         if (category === "LOTTERY") {
-            gachas.push(new Gacha(index, parseInt(match.groups.item0), name));
+            gachas.set(index, new Gacha(index, parseInt(match.groups.item0), name));
         }
         const enabled = !!parseInt(match.groups.enabled);
         const price_type: "ap" | "gold" | "none" = match.groups.price_type === "MINT" ? "ap" : match.groups.price_type === "GOLD" ? "gold" : "none";
@@ -371,6 +383,7 @@ function parseShopData(data: string) {
 }
 
 function parseGachaData(data: string, gacha: Gacha) {
+    //<LotteryItem_(?<character>[^ ]*) Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)\s*" Effect="\d+" ProductOpt="\d+"\/>
     for (const match of data.matchAll(/<LotteryItem_(?<character>[^ ]*) Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)" Effect="\d+" ProductOpt="\d+"\/>/g)) {
         if (!match.groups) {
             continue;
@@ -463,11 +476,11 @@ export async function downloadItems() {
     parseItemData(itemData);
     parseShopData(shopData);
     parseGuardianData(guardianData);
-    console.log(`Found ${gachas.length} gachas`);
-    for (const gacha of gachas) {
+    console.log(`Found ${gachas.size} gachas`);
+    for (const [, gacha] of gachas) {
         const gacha_url = `${gachaSource}/Ini3_Lot_${`${gacha.gacha_index}`.padStart(2, "0")}.xml`;
         try {
-            parseGachaData(await download(gacha_url, downloadCounter++, gachas.length + 3), gacha);
+            parseGachaData(await download(gacha_url, downloadCounter++, gachas.size + 3), gacha);
         } catch (e) {
             console.warn(`Failed downloading ${gacha_url} because ${e}`);
         }
@@ -501,24 +514,12 @@ function createPopupLink(text: string, content: HTMLElement | string | (HTMLElem
         dialog.style.position = "absolute";
         dialog.style.top = `${e.pageY}px`;
         dialog.style.left = `${e.pageX - width}px`;
-        dialog.style.width = `${width}px`;
         dialog.show();
     });
     return link;
 }
 
 function createChancePopup(tries: number) {
-    function prettyNumber(n: number) {
-        let s = n.toFixed(2);
-        if (s.endsWith(".00")) {
-            s = s.slice(0, -3);
-        }
-        else if (s.endsWith("0")) {
-            s = s.slice(0, -1);
-        }
-        return s;
-    }
-
     function probabilityAfterNTries(probability: number, tries: number) {
         return 1 - (Math.pow((1 - probability), tries));
     }
@@ -531,8 +532,11 @@ function createChancePopup(tries: number) {
             ["th", "Chance for item"],
         ],
     ]);
-    for (const factor of [0.1, 0.5, 1, 2, 10]) {
+    for (const factor of [0.1, 0.5, 1, 2, 5, 10]) {
         const gachas = Math.round(tries * factor);
+        if (gachas === 0) {
+            continue;
+        }
         content.appendChild(createHTML([
             "tr",
             ["td", { class: "numeric" }, `${gachas}`],
@@ -540,16 +544,47 @@ function createChancePopup(tries: number) {
         ]));
     }
     content.appendChild(createHTML(["tr"]));
-    return createPopupLink(`${prettyNumber(tries)}`, content);
+    return createPopupLink(`${prettyNumber(tries, 2)}`, content);
 }
 
-function sourceItemElement(item: Item, itemSource: ItemSource) {
-    if (itemSource.is_gacha) {
-        let gacha_factor = itemSource.gacha_factor.toFixed(1);
-        if (gacha_factor.endsWith(".0")) {
-            gacha_factor = gacha_factor.slice(0, -2);
+function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: Character) {
+    const content = createHTML([
+        "table",
+        [
+            "tr",
+            ["th", "Item"],
+            ["th", "Average Tries"],
+        ],
+    ]);
+    const gacha = gachas.get(itemSource.shop_id);
+    if (!gacha) {
+        throw "Internal error";
+    }
+
+    for (const char of character === undefined ? characters : [character]) {
+        const gacha_items = gacha.shop_items.get(char);
+        if (!gacha_items) {
+            continue;
         }
-        return createHTML(["a", itemSource.item.name_en, createHTML(["a", ` x `, createChancePopup(itemSource.gacha_factor)])]);
+        for (const [shop_id,] of gacha_items) {
+            const shop_item = shop_items.get(shop_id);
+            if (!shop_item) {
+                throw "Internal error";
+            }
+            content.appendChild(createHTML([
+                "tr",
+                item === shop_item ? {class: "highlighted"} : "",
+                ["td", shop_item.name_en],
+                ["td", { class: "numeric" }, `${prettyNumber(gacha.average_tries(shop_id, character), 2)}`],
+            ]));
+        }
+    }
+    return createPopupLink(itemSource.item.name_en, [createHTML(["a", gacha.name]), content]);
+}
+
+function sourceItemElement(item: Item, itemSource: ItemSource, character?: Character) {
+    if (itemSource.is_gacha) {
+        return createHTML(["a", createGachaSourcePopup(item, itemSource, character), createHTML(["a", ` x `, createChancePopup(itemSource.gacha_factor)])]);
     }
     else if (itemSource.is_available_in_shop) {
         const price = `${itemSource.price} ${itemSource.is_ap ? "AP" : "Gold"}`;
@@ -567,10 +602,10 @@ function sourceItemElement(item: Item, itemSource: ItemSource) {
     return createHTML(["a", itemSource.guardian_map]);
 }
 
-function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean): HTMLTableRowElement {
+function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean, character?: Character): HTMLTableRowElement {
     const sources_div = createHTML(["div"]);
     let first = true;
-    for (const element of item.sources.filter(sourceFilter).map(itemSource => sourceItemElement(item, itemSource))) {
+    for (const element of item.sources.filter(sourceFilter).map(itemSource => sourceItemElement(item, itemSource, character))) {
         if (!first) {
             sources_div.appendChild(createHTML(["a", ", "]));
         }
@@ -602,7 +637,7 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
     return row;
 }
 
-export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (itemSource: ItemSource) => boolean, priorizer: (items: Item[], item: Item) => Item[]): HTMLTableElement {
+export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (itemSource: ItemSource) => boolean, priorizer: (items: Item[], item: Item) => Item[], character: string): HTMLTableElement {
     const results: { [key: string]: Item[] } = {
         "Hat": [],
         "Hair": [],
@@ -676,7 +711,7 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
         statistics.Level = Math.max(result[0].level, statistics.Level);
         for (const item of result) {
             statistics.characters.add(item.character)
-            table.appendChild(itemToTableRow(item, sourceFilter));
+            table.appendChild(itemToTableRow(item, sourceFilter, isCharacter(character) ? character : undefined));
         }
     }
     if (statistics.characters.size === 1) {
