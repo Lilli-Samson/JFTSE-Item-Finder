@@ -607,22 +607,38 @@ function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: 
     return createPopupLink(itemSource.item.name_en, [createHTML(["a", gacha.name]), content]);
 }
 
+function makeSourcesList(elements: HTMLElement[]): (HTMLElement | string)[] {
+    const result: (HTMLElement | string)[] = [];
+    let first = true;
+    for (const element of elements) {
+        if (!first) {
+            result.push(createHTML(["a", ", "]));
+        }
+        else {
+            first = false;
+        }
+        result.push(element);
+    }
+    return result;
+}
+
 function sourceItemElement(item: Item, itemSource: ItemSource, character?: Character): HTMLAnchorElement {
     switch (itemSource.type) {
         case "gacha":
+            const sources = itemSource.item.sources.map(s => sourceItemElement(itemSource.item, s, character));
             return createHTML(
                 ["a",
                     createGachaSourcePopup(item, itemSource, character),
                     ["a", ` x `, createChancePopup(itemSource.gachaTries(item, character))],
-                    " from ",
-                    ...itemSource.item.sources.map(s => sourceItemElement(itemSource.item, s, character)),
+                    sources.length === 0 ? "" : " from ",
+                    ...makeSourcesList(sources),
                 ]);
         case "shop":
             const price = `${itemSource.price} ${itemSource.ap ? "AP" : "Gold"}`;
             if (itemSource.item === item) { //buy directly
                 return createHTML(["a", `Shop ${price}`]);
             }
-            else {
+            else { //part of a set
                 //TODO: popup for set item contents
                 return createHTML(["a", `${itemSource.item.name_en} from Shop ${price}`])
             }
@@ -632,17 +648,7 @@ function sourceItemElement(item: Item, itemSource: ItemSource, character?: Chara
 }
 
 function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean, character?: Character): HTMLTableRowElement {
-    const sources_div = createHTML(["div"]);
-    let first = true;
-    for (const element of item.sources.filter(sourceFilter).map(itemSource => sourceItemElement(item, itemSource, character))) {
-        if (!first) {
-            sources_div.appendChild(createHTML(["a", ", "]));
-        }
-        else {
-            first = false;
-        }
-        sources_div.appendChild(element);
-    }
+    const elements = item.sources.filter(sourceFilter).map(itemSource => sourceItemElement(item, itemSource, character));
     const row = createHTML(
         ["tr",
             ["td", { class: "Name_column" }, deletableItem(item.name_en, item.id)],
@@ -660,7 +666,7 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
             ["td", { class: "Serve_column numeric" }, `${item.serve}`],
             ["td", { class: "HP_column numeric" }, `${item.hp}`],
             ["td", { class: "Level_column numeric" }, `${item.level}`],
-            ["td", { class: "Source_column" }, sources_div],
+            ["td", { class: "Source_column" }, ...makeSourcesList(elements)],
         ]
     );
     return row;
