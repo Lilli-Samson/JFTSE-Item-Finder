@@ -455,7 +455,7 @@ async function download(url: string, value: number | undefined = undefined, max_
 
 export async function downloadItems() {
     const itemSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res";
-    const gachaSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/lottery";
+    const gachaSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/game-server/src/main/resources/res/lottery";
     const guardianSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/"
     let downloadCounter = 1;
     const itemURL = itemSource + "/Item_Parts_Ini3.xml";
