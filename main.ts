@@ -1,5 +1,5 @@
 import { makeCheckboxTree, TreeNode, getLeafStates } from './checkboxTree';
-import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel } from './itemLookup';
+import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, shop_items } from './itemLookup';
 import { createHTML } from './html';
 
 const characters = ["All", "Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al",];
@@ -33,29 +33,15 @@ const availabilityFilter = [
             "AP",
         ],
         "Allow gacha",
-        "-Guardian",
+        "Guardian",
         "Parcel enabled",
         "Parcel disabled",
-        "Exclude unavailable items",
         "Exclude statless items",
+        "Exclude unavailable items",
     ],
 ];
 
-function getName(node: HTMLInputElement): string | null | void {
-    const parent = node.parentElement;
-    if (!(parent instanceof HTMLUListElement)) {
-        return "";
-    }
-    let found = false;
-    for (const child of parent.children) {
-        if (found) {
-            return child.textContent;
-        }
-        if (child === node) {
-            found = true;
-        }
-    }
-}
+const excluded_item_ids = new Set<number>();
 
 function addFilterTrees() {
     const target = document.getElementById("characterFilters");
@@ -165,9 +151,7 @@ function updateResults() {
             throw "Internal error";
         }
         const partsStates = getLeafStates(partsFilterList);
-        filters.push((item: Item): boolean => {
-            return partsStates[item.part];
-        });
+        filters.push(item => partsStates[item.part]);
     }
 
     { //availability filter
@@ -194,6 +178,19 @@ function updateResults() {
         if (availabilityStates["Exclude statless items"]) {
             filters.push(item => !!item.buffslots || !!item.charge || !!item.dex || !!item.hp || !!item.lob || !!item.movement || !!item.quickslots || !!item.serve || !!item.smash || !!item.sta || !!item.str || !!item.wil);
         }
+        if (!availabilityStates["Guardian"]) {
+            function available_without_guardian(itemSource: ItemSource): boolean {
+                if (itemSource.is_shop) {
+                    return true;
+                }
+                const item = shop_items.get(itemSource.shop_id);
+                if (!item) {
+                    return false;
+                }
+                return !item.sources.every(source => !available_without_guardian(source));
+            }
+            sourceFilters.push(itemSource => available_without_guardian(itemSource));
+        }
         if (availabilityStates["Exclude unavailable items"]) {
             filters.push(item => item.sources.filter(source => sourceFilters.every(sourceFilter => sourceFilter(source))).length > 0);
         }
@@ -217,10 +214,30 @@ function updateResults() {
         }
     }
 
+    { //id filter
+        filters.push(item => !excluded_item_ids.has(item.id));
+        const itemFilterList = document.getElementById("itemFilter");
+        if (!(itemFilterList instanceof HTMLDivElement)) {
+            throw "Internal error";
+
+        }
+        for (const child of itemFilterList.children) {
+            child.remove();
+        }
+        for (const id of excluded_item_ids) {
+            const item = items.get(id);
+            if (!item) {
+                continue;
+            }
+            itemFilterList.appendChild(createHTML(["div", createHTML(["button", { class: "item_removal_removal", "data-item_index": `${id}` }, "X"]), item.name_en]));
+        }
+
+    }
+
     const comparators: ((lhs: Item, rhs: Item) => number)[] = [];
 
     {
-        const priorityList = document.getElementById("priority list");
+        const priorityList = document.getElementById("priority_list");
         if (!(priorityList instanceof HTMLOListElement)) {
             throw "Internal error";
         }
@@ -345,3 +362,23 @@ window.addEventListener("load", async () => {
     levelrange.dispatchEvent(new Event("input"));
     updateResults();
 });
+
+document.body.addEventListener('click', (event) => {
+    if (!(event.target instanceof HTMLElement)) {
+        return;
+    }
+    if (event.target.className === "item_removal") {
+        if (!event.target.dataset.item_index) {
+            return;
+        }
+        excluded_item_ids.add(parseInt(event.target.dataset.item_index));
+        updateResults();
+    }
+    else if (event.target.className === "item_removal_removal") {
+        if (!event.target.dataset.item_index) {
+            return;
+        }
+        excluded_item_ids.delete(parseInt(event.target.dataset.item_index));
+        updateResults();
+    }
+}, false);

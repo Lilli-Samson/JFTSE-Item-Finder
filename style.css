@@ -57,3 +57,28 @@ progress#progressbar {
 table tr:nth-child(even) td {
     background-color: aliceblue;
 }
+
+#notice_group {
+    color: red;
+}
+
+button.item_removal {
+    margin-right: 0.3em;
+}
+
+button.item_removal_removal {
+    margin-right: 0.3em;
+    margin-left: 1em;
+}
+
+td.total {
+    font-weight: bold;
+}
+
+td.numeric {
+    text-align: right;
+}
+
+ul.checkbox {
+    list-style-type: none;
+}
