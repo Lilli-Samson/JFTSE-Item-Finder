@@ -1,4 +1,3 @@
-import { table } from 'console';
 import { createHTML } from './html';
 
 const characters = ["Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al"] as const;
@@ -12,12 +11,7 @@ export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks
 type ItemSourceType = "shop" | "gacha" | "guardian";
 
 export class ItemSource {
-    private constructor(type: ItemSourceType, shop_id: number, price: number, ap: boolean, guardian_map: string = "") {
-        this.shop_id = shop_id;
-        this.price = price;
-        this.ap = ap;
-        this.guardian_map = guardian_map;
-        this.type = type;
+    private constructor(readonly type: ItemSourceType, readonly shop_id: number, readonly price: number, readonly ap: boolean, readonly guardian_map: string = "") {
     }
     static forShop(shop_id: number, price: number, ap: boolean) {
         return new ItemSource("shop", shop_id, price, ap);
@@ -62,11 +56,6 @@ export class ItemSource {
         }
         return gacha.average_tries(item, character);
     }
-    readonly shop_id: number;
-    readonly price: number;
-    readonly ap: boolean;
-    readonly guardian_map: string;
-    readonly type: ItemSourceType;
 }
 
 export class Item {
@@ -77,7 +66,7 @@ export class Item {
     maxUse = 0;
     hidden = false;
     resist = "";
-    character: Character = "Niki";
+    character?: Character;
     part: Part = "Hat";
     level = 0;
     str = 0;
@@ -109,16 +98,17 @@ export class Item {
 }
 
 class Gacha {
-    constructor(shop_index: number, gacha_index: number, name: string) {
-        this.shop_index = shop_index;
-        this.gacha_index = gacha_index;
-        this.name = name;
+    constructor(readonly shop_index: number, readonly gacha_index: number, readonly name: string) {
         for (const character of characters) {
             this.shop_items.set(character, new Map<Item, /*probability:*/ number>())
         }
     }
 
     add(item: Item, probability: number, character: Character) {
+        if (item.character && item.character !== character) {
+            //console.info(`Item ${item.id} from gacha "${this.name}" ${this.gacha_index} has wrong character`);
+            character = item.character;
+        }
         this.shop_items.get(character)!.set(item, probability);
         this.character_probability.set(character, probability + (this.character_probability.get(character) || 0));
     }
@@ -133,9 +123,6 @@ class Gacha {
         return total_probability / probability;
     }
 
-    shop_index: number;
-    gacha_index: number;
-    name: string;
     character_probability = new Map<Character, number>();
     shop_items = new Map<Character, Map<Item, /*probability:*/ number>>();
 }
@@ -155,7 +142,6 @@ function prettyNumber(n: number, digits: number) {
     }
     return s;
 }
-
 
 function parseItemData(data: string) {
     if (data.length < 1000) {
@@ -638,7 +624,7 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
         ["tr",
             ["td", { class: "Name_column" }, deletableItem(item.name_en, item.id)],
             ["td", { class: "ID_column numeric" }, `${item.id}`],
-            ["td", { class: "Character_column" }, item.character],
+            ["td", { class: "Character_column" }, item.character ?? "All"],
             ["td", { class: "Part_column" }, item.part],
             ["td", { class: "Str_column numeric" }, `${item.str}`],
             ["td", { class: "Sta_column numeric" }, `${item.sta}`],
@@ -730,8 +716,10 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
         statistics.HP += result[0].hp;
         statistics.Level = Math.max(result[0].level, statistics.Level);
         for (const item of result) {
-            statistics.characters.add(item.character)
-            table.appendChild(itemToTableRow(item, sourceFilter, isCharacter(character) ? character : undefined));
+            for (const char of item.character ? [item.character] : characters) {
+                statistics.characters.add(char)
+                table.appendChild(itemToTableRow(item, sourceFilter, isCharacter(character) ? character : undefined));
+            }
         }
     }
     if (statistics.characters.size === 1) {
