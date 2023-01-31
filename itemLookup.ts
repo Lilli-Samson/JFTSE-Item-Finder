@@ -1,4 +1,4 @@
-import { type } from 'os';
+import { table } from 'console';
 import { createHTML } from './html';
 
 const characters = ["Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al"] as const;
@@ -10,31 +10,12 @@ function isCharacter(character: string): character is Character {
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
 
 export class ItemSource {
-    constructor(item_name: string, shop_id: number, price: number, ap: boolean = false, gacha_factor: number = 0) {
-        this.item_name = item_name;
+    constructor(shop_id: number, price: number, ap: boolean, gacha_factor: number = 0, guardian_map: string = "") {
         this.shop_id = shop_id;
         this.price = price;
-        if (ap) {
-            this.price *= -1;
-        }
+        this.ap = ap;
         this.gacha_factor = gacha_factor;
-    }
-    display_string(): string {
-        if (this.is_gacha) {
-            let gf = this.gacha_factor.toFixed(1);
-            if (gf.endsWith(".0")) {
-                gf = gf.substring(0, gf.length - 2);
-            }
-            return `"${this.item_name}" x ${gf}`;
-        }
-        else if (this.is_guardian) {
-            return this.item_name;
-        }
-        else {
-            const currency = this.is_ap ? "AP" : "Gold";
-            const price = Math.abs(this.price);
-            return `${this.item_name ? `"${this.item_name}" ` : ""}Shop ${price} ${currency}${this.gacha_factor ? ` x ${this.gacha_factor} ≈ ${this.gacha_factor * price} ${currency}` : ""}`;
-        }
+        this.guardian_map = guardian_map;
     }
     get is_ap() {
         return this.price < 0;
@@ -45,23 +26,34 @@ export class ItemSource {
     get is_gacha() {
         return this.gacha_factor > 0;
     }
-    get is_shop() {
-        return this.gacha_factor = 0;
+    get is_parcel_enabled() {
+        return this.item.parcel_enabled;
+    }
+    get is_available_in_shop() {
+        return !this.is_guardian && !this.is_gacha;
     }
     get is_guardian() {
-        return this.gacha_factor < 0;
+        return this.guardian_map !== "";
     }
-    item_name: string;
-    shop_id: number;
-    price: number;
-    gacha_factor: number;
+    get item() {
+        const item = shop_items.get(this.shop_id);
+        if (!item) {
+            console.error(`Failed finding item of itemSource ${this.shop_id}`);
+            throw "Internal error";
+        }
+        return item;
+    }
+    readonly shop_id: number;
+    readonly price: number;
+    readonly ap: boolean;
+    readonly gacha_factor: number;
+    readonly guardian_map: string;
 }
 
 export class Item {
     id = 0;
     name_kr = "";
     name_en = "";
-    name_shop = "";
     useType = "";
     maxUse = 0;
     hidden = false;
@@ -132,6 +124,7 @@ class Gacha {
 export let items = new Map<number, Item>();
 export let shop_items = new Map<number, Item>();
 let gachas: Gacha[] = [];
+let dialog: HTMLDialogElement | undefined;
 
 function parseItemData(data: string) {
     if (data.length < 1000) {
@@ -354,19 +347,22 @@ function parseShopData(data: string) {
             }
             let oldItem = items.get(itemID);
             const newItem = new Item();
-            newItem.name_en = match.groups.name_en ?? "";
+            newItem.name_en = match.groups.name_en || match.groups.name;
             //todo: fill rest of item
             if (!oldItem) {
                 oldItem = newItem;
             }
             if (category === "PARTS") {
                 if (enabled) {
-                    oldItem.sources.push(new ItemSource(name === newItem.name_en ? "" : name, index, price, price_type === "ap"));
+                    oldItem.sources.push(new ItemSource(index, price, price_type === "ap"));
                 }
                 shop_items.set(index, oldItem);
             }
             else {
                 shop_items.set(index, newItem);
+                if (category === "LOTTERY" && enabled) {
+                    newItem.sources.push(new ItemSource(index, price, price_type === "ap"));
+                }
             }
         }
         count++;
@@ -396,7 +392,7 @@ function parseGachaData(data: string, gacha: Gacha) {
                 console.warn(`Failed to find item ${shop_id} from "${gacha.name}" in shop`);
                 continue;
             }
-            item.sources.push(new ItemSource(gacha.name, shop_id, 0, false, gacha.average_tries(shop_id, character)));
+            item.sources.push(new ItemSource(gacha.shop_index, 0, false, gacha.average_tries(shop_id, character)));
         }
     }
 }
@@ -426,7 +422,7 @@ function parseGuardianData(data: string) {
             if (!item) {
                 continue;
             }
-            item.sources.push(new ItemSource(map_name, shop_id, 0, false, -1));
+            item.sources.push(new ItemSource(shop_id, 0, false, 0, map_name));
         }
     }
 }
@@ -483,7 +479,106 @@ function deletableItem(name: string, id: number) {
     return createHTML(["div", createHTML(["button", { class: "item_removal", "data-item_index": `${id}` }, "X"]), name]);
 }
 
+function createPopupLink(text: string, content: HTMLElement | string | (HTMLElement | string)[]) {
+    const link = createHTML(["a", { class: "popup_link" }, text]);
+    link.addEventListener("click", (e) => {
+        if (!(e instanceof MouseEvent)) {
+            return;
+        }
+        const top_div = document.getElementById("top_div");
+        if (!(top_div instanceof HTMLDivElement)) {
+            return;
+        }
+        e.stopPropagation();
+        if (dialog) {
+            dialog.close();
+            dialog.remove();
+        }
+        dialog = Array.isArray(content) ? createHTML(["dialog", ...content]) : createHTML(["dialog", content]);
+
+        top_div.appendChild(dialog);
+        const width = 300;
+        dialog.style.position = "absolute";
+        dialog.style.top = `${e.pageY}px`;
+        dialog.style.left = `${e.pageX - width}px`;
+        dialog.style.width = `${width}px`;
+        dialog.show();
+    });
+    return link;
+}
+
+function createChancePopup(tries: number) {
+    function prettyNumber(n: number) {
+        let s = n.toFixed(2);
+        if (s.endsWith(".00")) {
+            s = s.slice(0, -3);
+        }
+        else if (s.endsWith("0")) {
+            s = s.slice(0, -1);
+        }
+        return s;
+    }
+
+    function probabilityAfterNTries(probability: number, tries: number) {
+        return 1 - (Math.pow((1 - probability), tries));
+    }
+
+    const content = createHTML([
+        "table",
+        [
+            "tr",
+            ["th", "Number of gachas"],
+            ["th", "Chance for item"],
+        ],
+    ]);
+    for (const factor of [0.1, 0.5, 1, 2, 10]) {
+        const gachas = Math.round(tries * factor);
+        content.appendChild(createHTML([
+            "tr",
+            ["td", { class: "numeric" }, `${gachas}`],
+            ["td", { class: "numeric" }, `${(probabilityAfterNTries(1 / tries, gachas) * 100).toFixed(4)}%`],
+        ]));
+    }
+    content.appendChild(createHTML(["tr"]));
+    return createPopupLink(`${prettyNumber(tries)}`, content);
+}
+
+function sourceItemElement(item: Item, itemSource: ItemSource) {
+    if (itemSource.is_gacha) {
+        let gacha_factor = itemSource.gacha_factor.toFixed(1);
+        if (gacha_factor.endsWith(".0")) {
+            gacha_factor = gacha_factor.slice(0, -2);
+        }
+        return createHTML(["a", itemSource.item.name_en, createHTML(["a", ` x `, createChancePopup(itemSource.gacha_factor)])]);
+    }
+    else if (itemSource.is_available_in_shop) {
+        const price = `${itemSource.price} ${itemSource.is_ap ? "AP" : "Gold"}`;
+        if (itemSource.item === item) { //buy directly
+            return createHTML(["a", `Shop ${price}`]);
+        }
+        else {
+            //TODO: popup for set item contents
+            return createHTML(["a", `Shop "${itemSource.item.name_en}" ${price}`])
+        }
+    }
+    if (!itemSource.is_guardian) {
+        throw "Internal error";
+    }
+    return createHTML(["a", itemSource.guardian_map]);
+}
+
 function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean): HTMLTableRowElement {
+    const sources_div = createHTML(["div"]);
+    let first = true;
+    for (const element of item.sources.filter(sourceFilter).map(itemSource => sourceItemElement(item, itemSource))) {
+        if (!first) {
+            sources_div.appendChild(createHTML(["a", ", "]));
+        }
+        else {
+            first = false;
+        }
+        sources_div.appendChild(element);
+    }
     const row = createHTML(
         ["tr",
             ["td", { class: "Name_column" }, deletableItem(item.name_en, item.id)],
@@ -501,7 +596,7 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
             ["td", { class: "Serve_column numeric" }, `${item.serve}`],
             ["td", { class: "HP_column numeric" }, `${item.hp}`],
             ["td", { class: "Level_column numeric" }, `${item.level}`],
-            ["td", { class: "Source_column" }, item.sources.filter(sourceFilter).map(item => item.display_string()).join(", ")],
+            ["td", { class: "Source_column" }, sources_div],
         ]
     );
     return row;
@@ -634,3 +729,11 @@ export function getMaxItemLevel() {
     }
     return max;
 }
+
+document.body.addEventListener('click', (event) => {
+    if (dialog && dialog !== event.target) {
+        dialog.close();
+        dialog.remove();
+        dialog = undefined;
+    }
+});

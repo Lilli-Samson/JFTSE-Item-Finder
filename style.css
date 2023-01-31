@@ -18,6 +18,12 @@ div#characterFilters {
     height: fit-content;
 }
 
+div#top_div {
+    position: relative;
+    width: 0px;
+    height: 0px;
+}
+
 .Radio {
     display: inline-flex;
     align-items: center;
@@ -58,6 +64,18 @@ table tr:nth-child(even) td {
     background-color: aliceblue;
 }
 
+td.total {
+    font-weight: bold;
+}
+
+td.numeric {
+    text-align: right;
+}
+
+table th {
+    text-align: left;
+}
+
 #notice_group {
     color: red;
 }
@@ -71,14 +89,10 @@ button.item_removal_removal {
     margin-left: 1em;
 }
 
-td.total {
-    font-weight: bold;
-}
-
-td.numeric {
-    text-align: right;
-}
-
 ul.checkbox {
     list-style-type: none;
+}
+
+a.popup_link {
+    text-decoration-line: underline;
 }

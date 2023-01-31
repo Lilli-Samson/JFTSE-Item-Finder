@@ -180,14 +180,14 @@ function updateResults() {
         }
         if (!availabilityStates["Guardian"]) {
             function available_without_guardian(itemSource: ItemSource): boolean {
-                if (itemSource.is_shop) {
-                    return true;
-                }
-                const item = shop_items.get(itemSource.shop_id);
-                if (!item) {
+                if (itemSource.is_guardian) {
                     return false;
                 }
-                return !item.sources.every(source => !available_without_guardian(source));
+                if (itemSource.is_gacha) {
+                    const item = itemSource.item;
+                    return !item.sources.every(item => !available_without_guardian(item));
+                }
+                return false;
             }
             sourceFilters.push(itemSource => available_without_guardian(itemSource));
         }
@@ -381,4 +381,4 @@ document.body.addEventListener('click', (event) => {
         excluded_item_ids.delete(parseInt(event.target.dataset.item_index));
         updateResults();
     }
-}, false);
+});
