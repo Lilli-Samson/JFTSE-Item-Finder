@@ -9,31 +9,43 @@ function isCharacter(character: string): character is Character {
 
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
 
+type ItemSourceType = "shop" | "gacha" | "guardian";
+
 export class ItemSource {
-    constructor(shop_id: number, price: number, ap: boolean, gacha_factor: number = 0, guardian_map: string = "") {
+    private constructor(type: ItemSourceType, shop_id: number, price: number, ap: boolean, guardian_map: string = "") {
         this.shop_id = shop_id;
         this.price = price;
         this.ap = ap;
-        this.gacha_factor = gacha_factor;
         this.guardian_map = guardian_map;
+        this.type = type;
     }
-    get is_ap() {
-        return this.price < 0;
+    static forShop(shop_id: number, price: number, ap: boolean) {
+        return new ItemSource("shop", shop_id, price, ap);
     }
-    get is_gold() {
-        return this.price > 0;
+    static forGacha(shop_id: number) {
+        return new ItemSource("gacha", shop_id, 0, false,)
     }
-    get is_gacha() {
-        return this.gacha_factor > 0;
+    static forGuardian(guardian_map: string) {
+        return new ItemSource("guardian", 0, 0, false, guardian_map);
+    }
+    get requiresAP() {
+        return this.ap && !!this.price;
+    }
+    get requiresGold() {
+        return !this.ap && !!this.price;
+    }
+    get requiresGuardian(): boolean {
+        switch (this.type) {
+            case "guardian":
+                return true;
+            case "shop":
+                return false;
+            case "gacha":
+                return !this.item.sources.every(source => source.requiresGuardian)
+        }
     }
     get is_parcel_enabled() {
         return this.item.parcel_enabled;
-    }
-    get is_available_in_shop() {
-        return !this.is_guardian && !this.is_gacha;
-    }
-    get is_guardian() {
-        return this.guardian_map !== "";
     }
     get item() {
         const item = shop_items.get(this.shop_id);
@@ -43,11 +55,18 @@ export class ItemSource {
         }
         return item;
     }
+    gachaTries(item: Item, character?: Character) {
+        const gacha = gachas.get(this.shop_id);
+        if (!gacha) {
+            throw "Internal error";
+        }
+        return gacha.average_tries(item, character);
+    }
     readonly shop_id: number;
     readonly price: number;
     readonly ap: boolean;
-    readonly gacha_factor: number;
     readonly guardian_map: string;
+    readonly type: ItemSourceType;
 }
 
 export class Item {
@@ -95,18 +114,18 @@ class Gacha {
         this.gacha_index = gacha_index;
         this.name = name;
         for (const character of characters) {
-            this.shop_items.set(character, new Map</*shop_id:*/ number, /*probability:*/ number>())
+            this.shop_items.set(character, new Map<Item, /*probability:*/ number>())
         }
     }
 
-    add(shop_index: number, probability: number, character: Character) {
-        this.shop_items.get(character)!.set(shop_index, probability);
+    add(item: Item, probability: number, character: Character) {
+        this.shop_items.get(character)!.set(item, probability);
         this.character_probability.set(character, probability + (this.character_probability.get(character) || 0));
     }
 
-    average_tries(shop_index: number, character: Character | undefined = undefined) {
+    average_tries(item: Item, character: Character | undefined = undefined) {
         const chars: readonly Character[] = character ? ([character]) : characters;
-        const probability = chars.reduce((p, character) => p + (this.shop_items.get(character)!.get(shop_index) || 0), 0);
+        const probability = chars.reduce((p, character) => p + (this.shop_items.get(character)!.get(item) || 0), 0);
         if (probability === 0) {
             return 0;
         }
@@ -118,7 +137,7 @@ class Gacha {
     gacha_index: number;
     name: string;
     character_probability = new Map<Character, number>();
-    shop_items = new Map<Character, Map</*shop_id:*/ number, /*probability:*/ number>>();
+    shop_items = new Map<Character, Map<Item, /*probability:*/ number>>();
 }
 
 export let items = new Map<number, Item>();
@@ -366,14 +385,14 @@ function parseShopData(data: string) {
             }
             if (category === "PARTS") {
                 if (enabled) {
-                    oldItem.sources.push(new ItemSource(index, price, price_type === "ap"));
+                    oldItem.sources.push(ItemSource.forShop(index, price, price_type === "ap"));
                 }
                 shop_items.set(index, oldItem);
             }
             else {
                 shop_items.set(index, newItem);
                 if (category === "LOTTERY" && enabled) {
-                    newItem.sources.push(new ItemSource(index, price, price_type === "ap"));
+                    newItem.sources.push(ItemSource.forShop(index, price, price_type === "ap"));
                 }
             }
         }
@@ -383,8 +402,15 @@ function parseShopData(data: string) {
 }
 
 function parseGachaData(data: string, gacha: Gacha) {
-    //<LotteryItem_(?<character>[^ ]*) Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)\s*" Effect="\d+" ProductOpt="\d+"\/>
-    for (const match of data.matchAll(/<LotteryItem_(?<character>[^ ]*) Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)" Effect="\d+" ProductOpt="\d+"\/>/g)) {
+    for (const line of data.split("\n")) {
+        if (!line.includes("<LotteryItem_")) {
+            continue;
+        }
+        const match = line.match(/\s*<LotteryItem_(?<character>[^ ]*) Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)\s*" Effect="\d+" ProductOpt="\d+"\/>/);
+        if (!match) {
+            console.warn(`Failed parsing gacha ${gacha.gacha_index}:\n${line}`);
+            continue;
+        }
         if (!match.groups) {
             continue;
         }
@@ -393,19 +419,19 @@ function parseGachaData(data: string, gacha: Gacha) {
             character = "LunLun";
         }
         if (!isCharacter(character)) {
-            console.warn(`Found unknown character "${character} in lottery file ${gacha.gacha_index}`);
+            console.warn(`Found unknown character "${character}" in lottery file ${gacha.gacha_index}`);
             continue;
         }
-        gacha.add(parseInt(match.groups.shop_id), parseFloat(match.groups.probability), character);
+        const item = shop_items.get(parseInt(match.groups.shop_id));
+        if (!item) {
+            console.warn(`Found unknown shop item id ${match.groups.shop_id} in lottery file ${gacha.gacha_index}`);
+            continue;
+        }
+        gacha.add(item, parseFloat(match.groups.probability), character);
     }
-    for (const [character, map] of gacha.shop_items) {
-        for (const [shop_id, probability] of map) {
-            const item = shop_items.get(shop_id);
-            if (!item) {
-                console.warn(`Failed to find item ${shop_id} from "${gacha.name}" in shop`);
-                continue;
-            }
-            item.sources.push(new ItemSource(gacha.shop_index, 0, false, gacha.average_tries(shop_id, character)));
+    for (const [, map] of gacha.shop_items) {
+        for (const [item,] of map) {
+            item.sources.push(ItemSource.forGacha(gacha.shop_index));
         }
     }
 }
@@ -435,7 +461,7 @@ function parseGuardianData(data: string) {
             if (!item) {
                 continue;
             }
-            item.sources.push(new ItemSource(shop_id, 0, false, 0, map_name));
+            item.sources.push(ItemSource.forGuardian(map_name));
         }
     }
 }
@@ -566,16 +592,12 @@ function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: 
         if (!gacha_items) {
             continue;
         }
-        for (const [shop_id,] of gacha_items) {
-            const shop_item = shop_items.get(shop_id);
-            if (!shop_item) {
-                throw "Internal error";
-            }
+        for (const [gacha_item,] of gacha_items) {
             content.appendChild(createHTML([
                 "tr",
-                item === shop_item ? {class: "highlighted"} : "",
-                ["td", shop_item.name_en],
-                ["td", { class: "numeric" }, `${prettyNumber(gacha.average_tries(shop_id, character), 2)}`],
+                item === gacha_item ? { class: "highlighted" } : "",
+                ["td", gacha_item.name_en],
+                ["td", { class: "numeric" }, `${prettyNumber(gacha.average_tries(gacha_item, character), 2)}`],
             ]));
         }
     }
@@ -583,23 +605,21 @@ function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: 
 }
 
 function sourceItemElement(item: Item, itemSource: ItemSource, character?: Character) {
-    if (itemSource.is_gacha) {
-        return createHTML(["a", createGachaSourcePopup(item, itemSource, character), createHTML(["a", ` x `, createChancePopup(itemSource.gacha_factor)])]);
+    switch (itemSource.type) {
+        case "gacha":
+            return createHTML(["a", createGachaSourcePopup(item, itemSource, character), createHTML(["a", ` x `, createChancePopup(itemSource.gachaTries(item, character))])]);
+        case "shop":
+            const price = `${itemSource.price} ${itemSource.ap ? "AP" : "Gold"}`;
+            if (itemSource.item === item) { //buy directly
+                return createHTML(["a", `Shop ${price}`]);
+            }
+            else {
+                //TODO: popup for set item contents
+                return createHTML(["a", `${itemSource.item.name_en} from Shop ${price}`])
+            }
+        case "guardian":
+            return createHTML(["a", itemSource.guardian_map]);
     }
-    else if (itemSource.is_available_in_shop) {
-        const price = `${itemSource.price} ${itemSource.is_ap ? "AP" : "Gold"}`;
-        if (itemSource.item === item) { //buy directly
-            return createHTML(["a", `Shop ${price}`]);
-        }
-        else {
-            //TODO: popup for set item contents
-            return createHTML(["a", `Shop "${itemSource.item.name_en}" ${price}`])
-        }
-    }
-    if (!itemSource.is_guardian) {
-        throw "Internal error";
-    }
-    return createHTML(["a", itemSource.guardian_map]);
 }
 
 function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean, character?: Character): HTMLTableRowElement {

@@ -162,10 +162,10 @@ function updateResults() {
         }
         const availabilityStates = getLeafStates(availabilityFilterList);
         if (!availabilityStates["Gold"]) {
-            sourceFilters.push(itemSource => !itemSource.is_gold);
+            sourceFilters.push(itemSource => !itemSource.requiresGold);
         }
         if (!availabilityStates["AP"]) {
-            sourceFilters.push(itemSource => !itemSource.is_ap);
+            sourceFilters.push(itemSource => !itemSource.requiresAP);
         }
         if (!availabilityStates["Parcel enabled"]) {
             filters.push(item => !item.parcel_enabled);
@@ -174,23 +174,13 @@ function updateResults() {
             filters.push(item => item.parcel_enabled);
         }
         if (!availabilityStates["Allow gacha"]) {
-            sourceFilters.push(itemSource => !itemSource.is_gacha);
+            sourceFilters.push(itemSource => itemSource.type !== "gacha");
         }
         if (availabilityStates["Exclude statless items"]) {
             filters.push(item => !!item.buffslots || !!item.charge || !!item.dex || !!item.hp || !!item.lob || !!item.movement || !!item.quickslots || !!item.serve || !!item.smash || !!item.sta || !!item.str || !!item.wil);
         }
         if (!availabilityStates["Guardian"]) {
-            function available_without_guardian(itemSource: ItemSource): boolean {
-                if (itemSource.is_guardian) {
-                    return false;
-                }
-                if (itemSource.is_gacha) {
-                    const item = itemSource.item;
-                    return !item.sources.every(item => !available_without_guardian(item));
-                }
-                return false;
-            }
-            sourceFilters.push(itemSource => available_without_guardian(itemSource));
+            sourceFilters.push(itemSource => !itemSource.requiresGuardian);
         }
         if (availabilityStates["Exclude unavailable items"]) {
             filters.push(item => item.sources.filter(source => sourceFilters.every(sourceFilter => sourceFilter(source))).length > 0);
