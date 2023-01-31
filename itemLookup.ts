@@ -358,6 +358,24 @@ function parseShopData(data: string) {
             parseInt(match.groups.item8),
             parseInt(match.groups.item9),
         ];
+
+        if (category === "PARTS") {
+            if (itemIDs[0] !== 0 && itemIDs[1] === 0) { //exact item
+                const firstItem = items.get(itemIDs[0]);
+                if (!firstItem) {
+                    console.warn(`Failed finding item ${itemIDs[0]} in itemlist`);
+                }
+                else {
+                    shop_items.set(index, firstItem);
+                }
+            }
+            else { //set item
+                const newItem = new Item();
+                newItem.name_en = match.groups.name_en || match.groups.name;
+                shop_items.set(index, newItem);
+            }
+        }
+
         for (const itemID of itemIDs) {
             if (itemID === 0) {
                 continue;
@@ -373,7 +391,6 @@ function parseShopData(data: string) {
                 if (enabled) {
                     oldItem.sources.push(ItemSource.forShop(index, price, price_type === "ap"));
                 }
-                shop_items.set(index, oldItem);
             }
             else {
                 shop_items.set(index, newItem);
@@ -590,10 +607,16 @@ function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: 
     return createPopupLink(itemSource.item.name_en, [createHTML(["a", gacha.name]), content]);
 }
 
-function sourceItemElement(item: Item, itemSource: ItemSource, character?: Character) {
+function sourceItemElement(item: Item, itemSource: ItemSource, character?: Character): HTMLAnchorElement {
     switch (itemSource.type) {
         case "gacha":
-            return createHTML(["a", createGachaSourcePopup(item, itemSource, character), createHTML(["a", ` x `, createChancePopup(itemSource.gachaTries(item, character))])]);
+            return createHTML(
+                ["a",
+                    createGachaSourcePopup(item, itemSource, character),
+                    ["a", ` x `, createChancePopup(itemSource.gachaTries(item, character))],
+                    " from ",
+                    ...itemSource.item.sources.map(s => sourceItemElement(itemSource.item, s, character)),
+                ]);
         case "shop":
             const price = `${itemSource.price} ${itemSource.ap ? "AP" : "Gold"}`;
             if (itemSource.item === item) { //buy directly
