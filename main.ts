@@ -183,7 +183,22 @@ function updateResults() {
             sourceFilters.push(itemSource => !itemSource.requiresGuardian);
         }
         if (availabilityStates["Exclude unavailable items"]) {
-            filters.push(item => item.sources.filter(source => sourceFilters.every(sourceFilter => sourceFilter(source))).length > 0);
+            const sourceFilter = (itemSource: ItemSource) => sourceFilters.every(filter => filter(itemSource));
+            function unavailableExcluder(item: Item): boolean {
+                for (const itemSource of item.sources) {
+                    if (!sourceFilter(itemSource)) {
+                        continue;
+                    }
+                    if (itemSource.type === "gacha") {
+                        if (!unavailableExcluder(itemSource.item)) {
+                            continue;
+                        }
+                    }
+                    return true;
+                }
+                return false;
+            }
+            filters.push(unavailableExcluder);
         }
     }
 
