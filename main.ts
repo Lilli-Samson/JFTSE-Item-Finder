@@ -194,6 +194,11 @@ function updateResults() {
                             continue;
                         }
                     }
+                    else if (itemSource.type === "set") {
+                        if (!unavailableExcluder(itemSource.item)) {
+                            continue;
+                        }
+                    }
                     return true;
                 }
                 return false;

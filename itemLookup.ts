@@ -8,16 +8,25 @@ function isCharacter(character: string): character is Character {
 
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
 
-type ItemSourceType = "shop" | "gacha" | "guardian";
+type ItemSourceType = "shop" | "set" | "gacha" | "guardian";
 
 export class ItemSource {
-    private constructor(readonly type: ItemSourceType, readonly shop_id: number, readonly price: number, readonly ap: boolean, readonly guardian_map: string = "") {
+    private constructor(
+        readonly type: ItemSourceType,
+        readonly shop_id: number,
+        readonly price: number,
+        readonly ap: boolean,
+        readonly guardian_map: string = "",
+        readonly items: Item[] = []) {
     }
     static forShop(shop_id: number, price: number, ap: boolean) {
         return new ItemSource("shop", shop_id, price, ap);
     }
+    static forSet(shop_id: number, items: Item[]) {
+        return new ItemSource("set", shop_id, 0, false, "", items);
+    }
     static forGacha(shop_id: number) {
-        return new ItemSource("gacha", shop_id, 0, false,)
+        return new ItemSource("gacha", shop_id, 0, false);
     }
     static forGuardian(guardian_map: string) {
         return new ItemSource("guardian", 0, 0, false, guardian_map);
@@ -35,7 +44,8 @@ export class ItemSource {
             case "shop":
                 return false;
             case "gacha":
-                return !this.item.sources.every(source => source.requiresGuardian)
+            case "set":
+                return !this.item.sources.every(source => source.requiresGuardian);
         }
     }
     get is_parcel_enabled() {
@@ -359,45 +369,41 @@ function parseShopData(data: string) {
             parseInt(match.groups.item9),
         ];
 
+        const inner_items = itemIDs.filter(id => !!id && items.get(id)).map(id => items.get(id)!);
+
         if (category === "PARTS") {
-            if (itemIDs[0] !== 0 && itemIDs[1] === 0) { //exact item
-                const firstItem = items.get(itemIDs[0]);
-                if (!firstItem) {
-                    console.warn(`Failed finding item ${itemIDs[0]} in itemlist`);
-                }
-                else {
-                    shop_items.set(index, firstItem);
+            const itemSource = ItemSource.forShop(index, price, price_type === "ap");
+            if (inner_items.length === 1) {
+                shop_items.set(index, inner_items[0]);
+                if (enabled) {
+                    inner_items[0].sources.push(itemSource);
                 }
             }
             else { //set item
-                const newItem = new Item();
-                newItem.name_en = match.groups.name_en || match.groups.name;
-                shop_items.set(index, newItem);
+                const setItem = new Item();
+                setItem.name_en = match.groups.name_en || match.groups.name;
+                shop_items.set(index, setItem);
+                if (enabled) {
+                    setItem.sources.push(itemSource);
+                }
+                const setSource = ItemSource.forSet(index, inner_items);
+                for (const item of inner_items) {
+                    item.sources.push(setSource);
+                }
             }
         }
-
-        for (const itemID of itemIDs) {
-            if (itemID === 0) {
-                continue;
+        else if (category === "LOTTERY") {
+            const gachaItem = new Item();
+            gachaItem.name_en = match.groups.name_en || match.groups.name;
+            shop_items.set(index, gachaItem);
+            if (enabled) {
+                gachaItem.sources.push(ItemSource.forShop(index, price, price_type === "ap"));
             }
-            let oldItem = items.get(itemID);
-            const newItem = new Item();
-            newItem.name_en = match.groups.name_en || match.groups.name;
-            //todo: fill rest of item
-            if (!oldItem) {
-                oldItem = newItem;
-            }
-            if (category === "PARTS") {
-                if (enabled) {
-                    oldItem.sources.push(ItemSource.forShop(index, price, price_type === "ap"));
-                }
-            }
-            else {
-                shop_items.set(index, newItem);
-                if (category === "LOTTERY" && enabled) {
-                    newItem.sources.push(ItemSource.forShop(index, price, price_type === "ap"));
-                }
-            }
+        }
+        else {
+            const otherItem = new Item();
+            otherItem.name_en = match.groups.name_en || match.groups.name;
+            shop_items.set(index, otherItem);
         }
         count++;
     }
@@ -607,6 +613,14 @@ function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: 
     return createPopupLink(itemSource.item.name_en, [createHTML(["a", gacha.name]), content]);
 }
 
+function createSetSourcePopup(item: Item, itemSource: ItemSource) {
+    const contentTable = createHTML(["table", ["tr", ["th", "Contents"]]]);
+    for (const inner_item of itemSource.items) {
+        contentTable.appendChild(createHTML(["tr", inner_item === item ? { class: "highlighted" } : "", ["td", inner_item.name_en]]));
+    }
+    return createPopupLink(itemSource.item.name_en, [createHTML(["a", itemSource.item.name_en, contentTable])]);
+}
+
 function makeSourcesList(elements: HTMLElement[]): (HTMLElement | string)[] {
     const result: (HTMLElement | string)[] = [];
     let first = true;
@@ -635,15 +649,17 @@ function sourceItemElement(item: Item, itemSource: ItemSource, character?: Chara
                 ]);
         case "shop":
             const price = `${itemSource.price} ${itemSource.ap ? "AP" : "Gold"}`;
-            if (itemSource.item === item) { //buy directly
-                return createHTML(["a", `Shop ${price}`]);
-            }
-            else { //part of a set
-                //TODO: popup for set item contents
-                return createHTML(["a", `${itemSource.item.name_en} from Shop ${price}`])
-            }
+            return createHTML(["a", `Shop ${price}`]);
         case "guardian":
             return createHTML(["a", itemSource.guardian_map]);
+        case "set":
+            const setSources = itemSource.item.sources.map(s => sourceItemElement(itemSource.item, s, character));
+            return createHTML(
+                ["a",
+                    createSetSourcePopup(item, itemSource),
+                    setSources.length === 0 ? "" : " from ",
+                    ...makeSourcesList(setSources),
+                ]);
     }
 }
 
