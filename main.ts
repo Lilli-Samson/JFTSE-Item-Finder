@@ -183,7 +183,6 @@ function saveSelection() {
             throw "Internal error";
         }
         const item_name = namefilter.value;
-        console.log(`Storing item name filter "${item_name}"`);
         if (item_name) {
             Variable_storage.set_variable("nameFilter", item_name);
         }
@@ -234,7 +233,6 @@ function restoreSelection() {
             throw "Internal error";
         }
         const item_name = Variable_storage.get_variable("nameFilter");
-        console.log(`Restoring item name "${item_name}"`);
         if (typeof item_name === "string") {
             namefilter.value = item_name;
         }

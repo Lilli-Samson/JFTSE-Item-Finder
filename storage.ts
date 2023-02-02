@@ -35,7 +35,6 @@ export class Variable_storage {
     static get_variable(variable_name: string) {
         const stored = localStorage.getItem(`${variable_name}`);
         if (typeof stored !== "string") {
-            console.error(`Tried to fetch undefined variable ${variable_name}`);
             return;
         }
         if (!is_storage_value(stored)) {
