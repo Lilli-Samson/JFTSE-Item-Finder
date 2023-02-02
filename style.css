@@ -102,5 +102,5 @@ a.popup_link {
 }
 
 dialog {
-    width: fit-content;
+    width: max-content;
 }
