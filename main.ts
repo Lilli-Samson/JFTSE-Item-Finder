@@ -140,7 +140,7 @@ function updateResults() {
                 selected_character = element.value;
                 if (selected_character !== "All") {
                     filters.push(item => item.character === selected_character);
-                };
+                }
                 break;
             }
         }
@@ -177,33 +177,61 @@ function updateResults() {
             sourceFilters.push(itemSource => itemSource.type !== "gacha");
         }
         if (availabilityStates["Exclude statless items"]) {
-            filters.push(item => !!item.buffslots || !!item.charge || !!item.dex || !!item.hp || !!item.lob || !!item.movement || !!item.quickslots || !!item.serve || !!item.smash || !!item.sta || !!item.str || !!item.wil);
+            filters.push(item => ![
+                item.part !== "Other",
+                !item.buffslots,
+                !item.charge,
+                !item.dex,
+                !item.hp,
+                !item.lob,
+                !item.movement,
+                !item.quickslots,
+                !item.serve,
+                !item.smash,
+                !item.sta,
+                !item.str,
+                !item.wil,
+            ].every(v => v));
         }
         if (!availabilityStates["Guardian"]) {
             sourceFilters.push(itemSource => !itemSource.requiresGuardian);
         }
         if (availabilityStates["Exclude unavailable items"]) {
-            const sourceFilter = (itemSource: ItemSource) => sourceFilters.every(filter => filter(itemSource));
-            function unavailableExcluder(item: Item): boolean {
+            const availabilitySourceFilter = [...sourceFilters];
+            const sourceFilter = (itemSource: ItemSource) => availabilitySourceFilter.every(filter => filter(itemSource));
+            function isAvailableSource(itemSource: ItemSource) {
+                if (!sourceFilter(itemSource)) {
+                    return false;
+                }
+                if (itemSource.type === "gacha" || itemSource.type === "set") {
+                    for (const source of itemSource.item.sources) {
+                        if (isAvailableSource(source)) {
+                            return true;
+                        }
+                    }
+                }
+                else {
+                    return true;
+                }
+                return false;
+            }
+            sourceFilters.push(isAvailableSource);
+
+            function isAvailableItem(item: Item): boolean {
                 for (const itemSource of item.sources) {
-                    if (!sourceFilter(itemSource)) {
+                    if (itemSource.shop_id === 20027) {
+                        console.debug();
+                    }
+                    const sourceAllowed = sourceFilter(itemSource);
+                    const sourceAvailable = isAvailableSource(itemSource);
+                    if (!isAvailableSource(itemSource)) {
                         continue;
-                    }
-                    if (itemSource.type === "gacha") {
-                        if (!unavailableExcluder(itemSource.item)) {
-                            continue;
-                        }
-                    }
-                    else if (itemSource.type === "set") {
-                        if (!unavailableExcluder(itemSource.item)) {
-                            continue;
-                        }
                     }
                     return true;
                 }
                 return false;
             }
-            filters.push(unavailableExcluder);
+            filters.push(isAvailableItem);
         }
     }
 

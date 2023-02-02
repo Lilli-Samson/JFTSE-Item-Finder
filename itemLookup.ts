@@ -6,7 +6,7 @@ function isCharacter(character: string): character is Character {
     return (characters as unknown as string[]).includes(character);
 }
 
-export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket";
+export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket" | "Other";
 
 type ItemSourceType = "shop" | "set" | "gacha" | "guardian";
 
@@ -77,7 +77,7 @@ export class Item {
     hidden = false;
     resist = "";
     character?: Character;
-    part: Part = "Hat";
+    part: Part = "Other";
     level = 0;
     str = 0;
     sta = 0;
@@ -618,53 +618,72 @@ function createSetSourcePopup(item: Item, itemSource: ItemSource) {
     for (const inner_item of itemSource.items) {
         contentTable.appendChild(createHTML(["tr", inner_item === item ? { class: "highlighted" } : "", ["td", inner_item.name_en]]));
     }
-    return createPopupLink(itemSource.item.name_en, [createHTML(["a", itemSource.item.name_en, contentTable])]);
+    return createPopupLink(itemSource.item.name_en + ` ${itemSource.shop_id}`, [createHTML(["a", itemSource.item.name_en, contentTable])]);
 }
 
-function makeSourcesList(elements: HTMLElement[]): (HTMLElement | string)[] {
+function itemSourcesToElementArray(
+    item: Item,
+    sourceFilter: (itemSource: ItemSource) => boolean,
+    character?: Character) {
+    return item.sources
+        .filter(sourceFilter)
+        .map(itemSource => sourceItemElement(item, itemSource, sourceFilter, character));
+}
+
+function makeSourcesList(list: (HTMLElement | string)[][]): (HTMLElement | string)[] {
     const result: (HTMLElement | string)[] = [];
+    function add(element: HTMLElement | string) {
+        if (typeof element === "string" && typeof result[result.length - 1] === "string") {
+            result[result.length - 1] = result[result.length - 1] + element;
+            return;
+        }
+        result.push(element);
+    }
     let first = true;
-    for (const element of elements) {
+    for (const elements of list) {
+        if (elements.length === 0) {
+            add(" ");
+            continue;
+        }
         if (!first) {
-            result.push(createHTML(["a", ", "]));
+            add(", ");
         }
         else {
             first = false;
         }
-        result.push(element);
+        for (const element of elements) {
+            if (element === "") {
+                continue;
+            }
+            add(element);
+        }
     }
     return result;
 }
 
-function sourceItemElement(item: Item, itemSource: ItemSource, character?: Character): HTMLAnchorElement {
+function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (itemSource: ItemSource) => boolean, character?: Character): (HTMLElement | string)[] {
     switch (itemSource.type) {
         case "gacha":
-            const sources = itemSource.item.sources.map(s => sourceItemElement(itemSource.item, s, character));
-            return createHTML(
-                ["a",
-                    createGachaSourcePopup(item, itemSource, character),
-                    ["a", ` x `, createChancePopup(itemSource.gachaTries(item, character))],
-                    sources.length === 0 ? "" : " from ",
-                    ...makeSourcesList(sources),
-                ]);
+            const sources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
+            return [
+                createGachaSourcePopup(item, itemSource, character),
+                createHTML(["a", ` x `, createChancePopup(itemSource.gachaTries(item, character))]),
+                ...makeSourcesList(sources),
+            ];
         case "shop":
-            const price = `${itemSource.price} ${itemSource.ap ? "AP" : "Gold"}`;
-            return createHTML(["a", `Shop ${price}`]);
+            return [`${itemSource.price} ${itemSource.ap ? "AP" : "Gold"}`];
         case "guardian":
-            return createHTML(["a", itemSource.guardian_map]);
+            return [itemSource.guardian_map];
         case "set":
-            const setSources = itemSource.item.sources.map(s => sourceItemElement(itemSource.item, s, character));
-            return createHTML(
-                ["a",
-                    createSetSourcePopup(item, itemSource),
-                    setSources.length === 0 ? "" : " from ",
-                    ...makeSourcesList(setSources),
-                ]);
+            const setSources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
+            return [
+                createSetSourcePopup(item, itemSource),
+                ...makeSourcesList(setSources),
+            ];
     }
 }
 
 function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean, character?: Character): HTMLTableRowElement {
-    const elements = item.sources.filter(sourceFilter).map(itemSource => sourceItemElement(item, itemSource, character));
     const row = createHTML(
         ["tr",
             ["td", { class: "Name_column" }, deletableItem(item.name_en, item.id)],
@@ -682,7 +701,7 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
             ["td", { class: "Serve_column numeric" }, `${item.serve}`],
             ["td", { class: "HP_column numeric" }, `${item.hp}`],
             ["td", { class: "Level_column numeric" }, `${item.level}`],
-            ["td", { class: "Source_column" }, ...makeSourcesList(elements)],
+            ["td", { class: "Source_column" }, ...makeSourcesList(itemSourcesToElementArray(item, sourceFilter, character))],
         ]
     );
     return row;
