@@ -1,8 +1,8 @@
 import { createHTML } from './html';
 
-const characters = ["Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al"] as const;
+export const characters = ["Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al"] as const;
 export type Character = typeof characters[number];
-function isCharacter(character: string): character is Character {
+export function isCharacter(character: string): character is Character {
     return (characters as unknown as string[]).includes(character);
 }
 

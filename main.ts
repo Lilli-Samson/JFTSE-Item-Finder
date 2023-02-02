@@ -1,8 +1,7 @@
 import { makeCheckboxTree, TreeNode, getLeafStates } from './checkboxTree';
-import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, shop_items } from './itemLookup';
+import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, Character, characters, isCharacter } from './itemLookup';
 import { createHTML } from './html';
-
-const characters = ["All", "Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi", "Al",];
+import { Variable_storage } from './storage';
 
 const partsFilter = [
     "Parts", [
@@ -48,7 +47,7 @@ function addFilterTrees() {
     }
 
     let first = true;
-    for (const character of characters) {
+    for (const character of ["All", ...characters]) {
         const id = `characterSelectors_${character}`;
         const radio_button = createHTML(["input", { id: id, type: "radio", name: "characterSelectors", value: character }]);
         radio_button.addEventListener("input", updateResults);
@@ -123,24 +122,55 @@ function compare(lhs: number, rhs: number) {
     return lhs < rhs ? -1 : 1;
 }
 
+function getSelectedCharacter(): Character | undefined {
+    const characterFilterList = document.getElementsByName("characterSelectors");
+    for (const element of characterFilterList) {
+        if (!(element instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        if (element.checked) {
+            const selection = element.value;
+            if (isCharacter(selection)) {
+                return selection;
+            }
+            return;
+        }
+    }
+}
+
+function setSelectedCharacter(character: Character | "All") {
+    const characterFilterList = document.getElementsByName("characterSelectors");
+    for (const element of characterFilterList) {
+        if (!(element instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        if (element.value === character) {
+            element.checked = true;
+            return;
+        }
+    }
+}
+
+function saveSelection() {
+    const selected_character = getSelectedCharacter() || "All";
+    Variable_storage.set_variable("Character", selected_character);
+}
+
+function restoreSelection() {
+    const stored_character = Variable_storage.get_variable("Character");
+    setSelectedCharacter(typeof stored_character === "string" && isCharacter(stored_character) ? stored_character : "All");
+}
+
 function updateResults() {
+    saveSelection();
     const filters: ((item: Item) => boolean)[] = [];
     const sourceFilters: ((itemSource: ItemSource) => boolean)[] = [];
     let selected_character = "";
 
     { //character filter
-        const characterFilterList = document.getElementsByName("characterSelectors");
-        for (const element of characterFilterList) {
-            if (!(element instanceof HTMLInputElement)) {
-                throw "Internal error";
-            }
-            if (element.checked) {
-                selected_character = element.value;
-                if (selected_character !== "All") {
-                    filters.push(item => item.character === selected_character);
-                }
-                break;
-            }
+        const selected_character = getSelectedCharacter();
+        if (selected_character) {
+            filters.push(item => item.character === selected_character);
         }
     }
 
@@ -197,11 +227,6 @@ function updateResults() {
 
             function isAvailableItem(item: Item): boolean {
                 for (const itemSource of item.sources) {
-                    if (itemSource.shop_id === 20027) {
-                        console.debug();
-                    }
-                    const sourceAllowed = sourceFilter(itemSource);
-                    const sourceAvailable = isAvailableSource(itemSource);
                     if (!isAvailableSource(itemSource)) {
                         continue;
                     }
@@ -340,12 +365,10 @@ function setMaxLevelDisplayUpdate() {
     if (!(levelrange instanceof HTMLInputElement)) {
         throw "Internal error";
     }
-    const callback = () => {
+    levelrange.addEventListener("input", () => {
         levelDisplay.textContent = `Max level requirement: ${levelrange.value}`;
         updateResults();
-    };
-    levelrange.addEventListener("input", callback);
-    callback();
+    });
 }
 
 function setDisplayUpdates() {
@@ -360,6 +383,7 @@ function setDisplayUpdates() {
 setDisplayUpdates();
 
 window.addEventListener("load", async () => {
+    restoreSelection();
     await downloadItems();
     for (const element of document.getElementsByClassName("show_after_load")) {
         if (element instanceof HTMLElement) {
