@@ -292,7 +292,7 @@ function updateResults() {
                     return false;
                 }
                 if (itemSource.type === "gacha" || itemSource.type === "set") {
-                    for (const source of itemSource.item.sources) {
+                    for (const [, source] of itemSource.item.sources) {
                         if (isAvailableSource(source)) {
                             return true;
                         }
@@ -306,7 +306,7 @@ function updateResults() {
             sourceFilters.push(isAvailableSource);
 
             function isAvailableItem(item: Item): boolean {
-                for (const itemSource of item.sources) {
+                for (const [, itemSource] of item.sources) {
                     if (!isAvailableSource(itemSource)) {
                         continue;
                     }

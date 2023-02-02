@@ -29,7 +29,7 @@ export class ItemSource {
         return new ItemSource("gacha", shop_id, 0, false);
     }
     static forGuardian(guardian_map: string) {
-        return new ItemSource("guardian", 0, 0, false, guardian_map);
+        return new ItemSource("guardian", this.guardian_map_id(guardian_map), 0, false, guardian_map);
     }
     get requiresAP() {
         return this.ap && !!this.price;
@@ -45,7 +45,7 @@ export class ItemSource {
                 return false;
             case "gacha":
             case "set":
-                return this.item.sources.every(source => source.requiresGuardian);
+                return [...this.item.sources.values()].every(source => source.requiresGuardian);
         }
     }
     get is_parcel_enabled() {
@@ -66,6 +66,15 @@ export class ItemSource {
         }
         return gacha.average_tries(item, character);
     }
+    static guardian_map_id(map: string) {
+        let index = this.guardian_maps.indexOf(map);
+        if (index === -1) {
+            index = this.guardian_maps.length;
+            this.guardian_maps.push(map);
+        }
+        return -index;
+    }
+    private static guardian_maps = [""];
 }
 
 export class Item {
@@ -104,7 +113,7 @@ export class Item {
     socket = 0;
     gauge = 0;
     gauge_battle = 0;
-    sources: ItemSource[] = []
+    sources = new Map<number, ItemSource>();
 }
 
 class Gacha {
@@ -380,7 +389,7 @@ function parseShopData(data: string) {
             if (inner_items.length === 1) {
                 shop_items.set(index, inner_items[0]);
                 if (enabled) {
-                    inner_items[0].sources.push(itemSource);
+                    inner_items[0].sources.set(itemSource.shop_id, itemSource);
                 }
             }
             else { //set item
@@ -388,11 +397,11 @@ function parseShopData(data: string) {
                 setItem.name_en = match.groups.name_en || match.groups.name;
                 shop_items.set(index, setItem);
                 if (enabled) {
-                    setItem.sources.push(itemSource);
+                    setItem.sources.set(itemSource.shop_id, itemSource);
                 }
                 const setSource = ItemSource.forSet(index, inner_items);
                 for (const item of inner_items) {
-                    item.sources.push(setSource);
+                    item.sources.set(setSource.shop_id, setSource);
                 }
             }
         }
@@ -401,7 +410,7 @@ function parseShopData(data: string) {
             gachaItem.name_en = match.groups.name_en || match.groups.name;
             shop_items.set(index, gachaItem);
             if (enabled) {
-                gachaItem.sources.push(ItemSource.forShop(index, price, price_type === "ap"));
+                gachaItem.sources.set(index, ItemSource.forShop(index, price, price_type === "ap"));
             }
         }
         else {
@@ -444,7 +453,7 @@ function parseGachaData(data: string, gacha: Gacha) {
     }
     for (const [, map] of gacha.shop_items) {
         for (const [item,] of map) {
-            item.sources.push(ItemSource.forGacha(gacha.shop_index));
+            item.sources.set(gacha.shop_index, ItemSource.forGacha(gacha.shop_index));
         }
     }
 }
@@ -474,7 +483,7 @@ function parseGuardianData(data: string) {
             if (!item) {
                 continue;
             }
-            item.sources.push(ItemSource.forGuardian(map_name));
+            item.sources.set(ItemSource.guardian_map_id(map_name), ItemSource.forGuardian(map_name));
         }
     }
 }
@@ -658,7 +667,7 @@ function itemSourcesToElementArray(
     item: Item,
     sourceFilter: (itemSource: ItemSource) => boolean,
     character?: Character) {
-    return item.sources
+    return [...item.sources.values()]
         .filter(sourceFilter)
         .map(itemSource => sourceItemElement(item, itemSource, sourceFilter, character));
 }
@@ -698,7 +707,7 @@ function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (it
     switch (itemSource.type) {
         case "gacha":
             const char = itemSource.requiresGuardian ? undefined : character;
-            const sources = itemSourcesToElementArray(itemSource.item, sourceFilter, char);
+            const sources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
             const sourcesList = makeSourcesList(sources);
             return [
                 createGachaSourcePopup(item, itemSource, char),
