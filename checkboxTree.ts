@@ -192,3 +192,14 @@ export function getLeafStates(node: HTMLUListElement) {
     }
     return states;
 }
+
+export function setLeafStates(node: HTMLUListElement, states: { [key: string]: boolean }) {
+    for (const leaf of getLeaves(node)) {
+        const state = states[leaf.id.replaceAll("_", " ")];
+        if (typeof state === "undefined") {
+            continue;
+        }
+        leaf.checked = state;
+        updateAncestors(leaf);
+    }
+}

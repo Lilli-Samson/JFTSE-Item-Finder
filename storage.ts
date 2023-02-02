@@ -53,20 +53,20 @@ export class Variable_storage {
         localStorage.clear();
     }
     static get variables() {
-        let result = new Map<string, Variable_storage_types>();
+        let result: { [key: string]: Variable_storage_types } = {};
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (typeof key !== "string") {
-                throw `localStorage logic error: Failed finding key ${i}`;
+                continue;
             }
             const value = localStorage.getItem(key);
             if (typeof value !== "string") {
-                throw `localStorage logic error: Failed finding value for key ${key}`;
+                continue;
             }
             if (!is_storage_value(value)) {
-                throw `localStorage logic error: Invalid value ${value}`;
+                continue;
             }
-            result.set(key, string_to_variable(value));
+            result[key] = string_to_variable(value);
         }
         return result;
     }

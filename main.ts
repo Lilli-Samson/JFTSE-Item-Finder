@@ -1,4 +1,4 @@
-import { makeCheckboxTree, TreeNode, getLeafStates } from './checkboxTree';
+import { makeCheckboxTree, TreeNode, getLeafStates, setLeafStates } from './checkboxTree';
 import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, Character, characters, isCharacter } from './itemLookup';
 import { createHTML } from './html';
 import { Variable_storage } from './storage';
@@ -154,11 +154,45 @@ function setSelectedCharacter(character: Character | "All") {
 function saveSelection() {
     const selected_character = getSelectedCharacter() || "All";
     Variable_storage.set_variable("Character", selected_character);
+    const partsFilterList = document.getElementById("partsFilter")?.children[0];
+    if (!(partsFilterList instanceof HTMLUListElement)) {
+        throw "Internal error";
+    }
+    for (const [name, value] of Object.entries(getLeafStates(partsFilterList))) {
+        Variable_storage.set_variable(name, value);
+    }
+    const availabilityFilterList = document.getElementById("availabilityFilter")?.children[0];
+    if (!(availabilityFilterList instanceof HTMLUListElement)) {
+        throw "Internal error";
+    }
+    for (const [name, value] of Object.entries(getLeafStates(availabilityFilterList))) {
+        Variable_storage.set_variable(name, value);
+    }
 }
 
 function restoreSelection() {
     const stored_character = Variable_storage.get_variable("Character");
     setSelectedCharacter(typeof stored_character === "string" && isCharacter(stored_character) ? stored_character : "All");
+
+    {//Filters
+        let states: { [key: string]: boolean } = {};
+        for (const [name, value] of Object.entries(Variable_storage.variables)) {
+            if (typeof value === "boolean") {
+                states[name] = value;
+            }
+        }
+
+        const partsFilterList = document.getElementById("partsFilter")?.children[0];
+        if (!(partsFilterList instanceof HTMLUListElement)) {
+            throw "Internal error";
+        }
+        setLeafStates(partsFilterList, states);
+        const availabilityFilterList = document.getElementById("availabilityFilter")?.children[0];
+        if (!(availabilityFilterList instanceof HTMLUListElement)) {
+            throw "Internal error";
+        }
+        setLeafStates(availabilityFilterList, states);
+    }
 }
 
 function updateResults() {
