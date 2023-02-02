@@ -17,8 +17,8 @@ export class ItemSource {
         readonly price: number,
         readonly ap: boolean,
         readonly guardian_map: string = "",
-        readonly items: Item[] = []) {
-    }
+        readonly items: Item[] = [],
+    ) { }
     static forShop(shop_id: number, price: number, ap: boolean) {
         return new ItemSource("shop", shop_id, price, ap);
     }
@@ -119,22 +119,22 @@ export class Item {
 class Gacha {
     constructor(readonly shop_index: number, readonly gacha_index: number, readonly name: string) {
         for (const character of characters) {
-            this.shop_items.set(character, new Map<Item, /*probability:*/ number>())
+            this.shop_items.set(character, new Map<Item, [/*probability:*/ number, /*quantity_min:*/ number, /*quantity_max:*/ number]>())
         }
     }
 
-    add(item: Item, probability: number, character: Character) {
+    add(item: Item, probability: number, character: Character, quantity_min: number, quantity_max: number) {
         if (item.character && item.character !== character) {
             //console.info(`Item ${item.id} from gacha "${this.name}" ${this.gacha_index} has wrong character`);
             character = item.character;
         }
-        this.shop_items.get(character)!.set(item, probability);
+        this.shop_items.get(character)!.set(item, [probability, quantity_min, quantity_max]);
         this.character_probability.set(character, probability + (this.character_probability.get(character) || 0));
     }
 
     average_tries(item: Item, character: Character | undefined = undefined) {
         const chars: readonly Character[] = character ? ([character]) : characters;
-        const probability = chars.reduce((p, character) => p + (this.shop_items.get(character)!.get(item) || 0), 0);
+        const probability = chars.reduce((p, character) => p + (this.shop_items.get(character)!.get(item)?.[0] || 0), 0);
         if (probability === 0) {
             return 0;
         }
@@ -147,7 +147,7 @@ class Gacha {
     }
 
     character_probability = new Map<Character, number>();
-    shop_items = new Map<Character, Map<Item, /*probability:*/ number>>();
+    shop_items = new Map<Character, Map<Item, [/*probability:*/ number, /*quantity_min:*/ number, /*quantity_max:*/ number]>>();
 }
 
 export let items = new Map<number, Item>();
@@ -428,7 +428,7 @@ function parseGachaData(data: string, gacha: Gacha) {
         if (!line.includes("<LotteryItem_")) {
             continue;
         }
-        const match = line.match(/\s*<LotteryItem_(?<character>[^ ]*) Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="\d+" QuantityMax="\d+" ChansPer="(?<probability>\d+\.?\d*)\s*" Effect="\d+" ProductOpt="\d+"\/>/);
+        const match = line.match(/\s*<LotteryItem_(?<character>[^ ]*) Index="\d+" _Name_="[^"]*" ShopIndex="(?<shop_id>\d+)" QuantityMin="(?<quantity_min>\d+)" QuantityMax="(?<quantity_max>\d+)" ChansPer="(?<probability>\d+\.?\d*)\s*" Effect="\d+" ProductOpt="\d+"\/>/);
         if (!match) {
             console.warn(`Failed parsing gacha ${gacha.gacha_index}:\n${line}`);
             continue;
@@ -449,7 +449,7 @@ function parseGachaData(data: string, gacha: Gacha) {
             console.warn(`Found unknown shop item id ${match.groups.shop_id} in lottery file ${gacha.gacha_index}`);
             continue;
         }
-        gacha.add(item, parseFloat(match.groups.probability), character);
+        gacha.add(item, parseFloat(match.groups.probability), character, parseInt(match.groups.quantity_min), parseInt(match.groups.quantity_max));
     }
     for (const [, map] of gacha.shop_items) {
         for (const [item,] of map) {
@@ -595,6 +595,16 @@ function createChancePopup(tries: number) {
     return createPopupLink(`${prettyNumber(tries, 2)}`, content);
 }
 
+function quantityString(quantity_min: number, quantity_max: number) {
+    if (quantity_min === 1 && quantity_max === 1) {
+        return "";
+    }
+    if (quantity_min === quantity_max) {
+        return ` x ${quantity_max}`;
+    }
+    return ` x ${quantity_min}-${quantity_max}`;
+}
+
 function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: Character) {
     const content = character ? createHTML([
         "table",
@@ -617,27 +627,27 @@ function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: 
         throw "Internal error";
     }
 
-    const gacha_items = new Map<Item, number>();
+    const gacha_items = new Map<Item, [number, number, number]>();
     for (const char of character === undefined ? characters : [character]) {
         const char_items = gacha.shop_items.get(char);
         if (!char_items) {
             continue;
         }
-        for (const [char_gacha_item, tickets] of char_items) {
+        for (const [char_gacha_item, [tickets, quantity_min, quantity_max]] of char_items) {
             const item_character = char_gacha_item.character || character;
             const item_tickets = item_character ? gacha.character_probability.get(item_character)! : gacha.total_probability;
             const probability = tickets / item_tickets;
-            const previous_probability = gacha_items.get(char_gacha_item) || 0;
-            gacha_items.set(char_gacha_item, previous_probability + probability);
+            const previous_probability = gacha_items.get(char_gacha_item)?.[0] || 0;
+            gacha_items.set(char_gacha_item, [previous_probability + probability, quantity_min, quantity_max]);
         }
     }
 
-    for (const [char_gacha_item, probability] of gacha_items) {
+    for (const [char_gacha_item, [probability, quantity_min, quantity_max]] of gacha_items) {
         if (character) {
             content.appendChild(createHTML([
                 "tr",
                 item === char_gacha_item ? { class: "highlighted" } : "",
-                ["td", char_gacha_item.name_en],
+                ["td", char_gacha_item.name_en, quantityString(quantity_min, quantity_max)],
                 ["td", { class: "numeric" }, `${prettyNumber(1 / probability, 2)}`],
             ]));
         }
@@ -645,7 +655,7 @@ function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: 
             content.appendChild(createHTML([
                 "tr",
                 item === char_gacha_item ? { class: "highlighted" } : "",
-                ["td", char_gacha_item.name_en],
+                ["td", char_gacha_item.name_en, quantityString(quantity_min, quantity_max)],
                 ["td", char_gacha_item.character || "*"],
                 ["td", { class: "numeric" }, `${prettyNumber(1 / probability, 2)}`],
             ]));
