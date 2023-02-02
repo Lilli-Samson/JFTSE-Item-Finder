@@ -618,7 +618,7 @@ function createSetSourcePopup(item: Item, itemSource: ItemSource) {
     for (const inner_item of itemSource.items) {
         contentTable.appendChild(createHTML(["tr", inner_item === item ? { class: "highlighted" } : "", ["td", inner_item.name_en]]));
     }
-    return createPopupLink(itemSource.item.name_en + ` ${itemSource.shop_id}`, [createHTML(["a", itemSource.item.name_en, contentTable])]);
+    return createPopupLink(itemSource.item.name_en, [createHTML(["a", itemSource.item.name_en, contentTable])]);
 }
 
 function itemSourcesToElementArray(
@@ -668,6 +668,7 @@ function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (it
             return [
                 createGachaSourcePopup(item, itemSource, character),
                 createHTML(["a", ` x `, createChancePopup(itemSource.gachaTries(item, character))]),
+                " ",
                 ...makeSourcesList(sources),
             ];
         case "shop":
@@ -678,6 +679,7 @@ function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (it
             const setSources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
             return [
                 createSetSourcePopup(item, itemSource),
+                " ",
                 ...makeSourcesList(setSources),
             ];
     }

@@ -7,37 +7,35 @@ const characters = ["All", "Niki", "LunLun", "Lucy", "Shua", "Dhanpir", "Pochi",
 const partsFilter = [
     "Parts", [
         "Head", [
-            "Hat",
-            "Hair",
+            "+Hat",
+            "+Hair",
             "Dye",
         ],
-        "Upper",
-        "Lower",
+        "+Upper",
+        "+Lower",
         "Legs", [
-            "Shoes",
+            "+Shoes",
             "Socks",
         ],
         "Aux", [
-            "Hand",
-            "Backpack",
-            "Face"
+            "+Hand",
+            "+Backpack",
+            "+Face"
         ],
-        "Racket",
+        "+Racket",
     ],
 ];
 
 const availabilityFilter = [
     "Availability", [
         "Shop", [
-            "Gold",
-            "AP",
+            "+Gold",
+            "+AP",
         ],
-        "Allow gacha",
-        "Guardian",
-        "Parcel enabled",
-        "Parcel disabled",
-        "Exclude statless items",
-        "Exclude unavailable items",
+        "+Allow gacha",
+        "+Guardian",
+        "+Untradable",
+        "Unavailable items",
     ],
 ];
 
@@ -167,36 +165,16 @@ function updateResults() {
         if (!availabilityStates["AP"]) {
             sourceFilters.push(itemSource => !itemSource.requiresAP);
         }
-        if (!availabilityStates["Parcel enabled"]) {
-            filters.push(item => !item.parcel_enabled);
-        }
-        if (!availabilityStates["Parcel disabled"]) {
+        if (!availabilityStates["Untradable"]) {
             filters.push(item => item.parcel_enabled);
         }
         if (!availabilityStates["Allow gacha"]) {
             sourceFilters.push(itemSource => itemSource.type !== "gacha");
         }
-        if (availabilityStates["Exclude statless items"]) {
-            filters.push(item => ![
-                item.part !== "Other",
-                !item.buffslots,
-                !item.charge,
-                !item.dex,
-                !item.hp,
-                !item.lob,
-                !item.movement,
-                !item.quickslots,
-                !item.serve,
-                !item.smash,
-                !item.sta,
-                !item.str,
-                !item.wil,
-            ].every(v => v));
-        }
         if (!availabilityStates["Guardian"]) {
             sourceFilters.push(itemSource => !itemSource.requiresGuardian);
         }
-        if (availabilityStates["Exclude unavailable items"]) {
+        if (!availabilityStates["Unavailable items"]) {
             const availabilitySourceFilter = [...sourceFilters];
             const sourceFilter = (itemSource: ItemSource) => availabilitySourceFilter.every(filter => filter(itemSource));
             function isAvailableSource(itemSource: ItemSource) {

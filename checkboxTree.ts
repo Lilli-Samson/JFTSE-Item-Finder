@@ -92,7 +92,7 @@ function updateAncestors(node: HTMLInputElement) {
 }
 
 function applyCheckListener(node: HTMLInputElement) {
-    node.addEventListener("change", function (e) {
+    node.addEventListener("change", e => {
         const target = e.target;
         if (!(target instanceof HTMLInputElement)) {
             return;
@@ -120,8 +120,28 @@ function makeCheckboxTreeNode(treeNode: TreeNode): HTMLLIElement {
             treeNode = treeNode.substring(1);
             disabled = true;
         }
+        let checked = false;
+        if (treeNode[0] === "+") {
+            treeNode = treeNode.substring(1);
+            checked = true;
+        }
 
-        const node = createHTML(["li", createHTML(["input", { type: "checkbox", id: treeNode.replaceAll(" ", "_"), checked: "checked" }]), createHTML(["label", { for: treeNode.replaceAll(" ", "_") }, treeNode])]);
+        const node = createHTML([
+            "li",
+            [
+                "input",
+                {
+                    type: "checkbox",
+                    id: treeNode.replaceAll(" ", "_"),
+                    ...(checked && { checked: "checked" })
+                }
+            ],
+            [
+                "label",
+                { for: treeNode.replaceAll(" ", "_") },
+                treeNode
+            ]
+        ]);
         if (disabled) {
             node.classList.add("disabled");
         }
@@ -143,21 +163,32 @@ export function makeCheckboxTree(treeNode: TreeNode) {
         throw "Internal error";
     }
     applyCheckListeners(root);
+    for (const leaf of getLeaves(root)) {
+        updateAncestors(leaf);
+    }
     return root;
 }
 
-export function getLeafStates(node: HTMLUListElement) {
-    let states: { [key: string]: boolean } = {};
+function getLeaves(node: HTMLUListElement) {
+    let result: HTMLInputElement[] = [];
     for (const element of node.children) {
         const input = element.children[0];
         if (input instanceof HTMLInputElement) {
             if (getChildren(input).length === 0) {
-                states[input.id.replaceAll("_", " ")] = input.checked;
+                result.push(input);
             }
         }
         else if (input instanceof HTMLUListElement) {
-            states = { ...states, ...getLeafStates(input) };
+            result = result.concat(getLeaves(input));
         }
+    }
+    return result;
+}
+
+export function getLeafStates(node: HTMLUListElement) {
+    let states: { [key: string]: boolean } = {};
+    for (const leaf of getLeaves(node)) {
+        states[leaf.id.replaceAll("_", " ")] = leaf.checked;
     }
     return states;
 }
