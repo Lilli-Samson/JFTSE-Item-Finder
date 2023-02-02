@@ -665,11 +665,12 @@ function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (it
     switch (itemSource.type) {
         case "gacha":
             const sources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
+            const sourcesList = makeSourcesList(sources);
             return [
                 createGachaSourcePopup(item, itemSource, character),
                 createHTML(["a", ` x `, createChancePopup(itemSource.gachaTries(item, character))]),
-                " ",
-                ...makeSourcesList(sources),
+                ...(sourcesList.length > 0 ? [" "] : []),
+                ...sourcesList,
             ];
         case "shop":
             return [`${itemSource.price} ${itemSource.ap ? "AP" : "Gold"}`];
@@ -677,10 +678,11 @@ function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (it
             return [itemSource.guardian_map];
         case "set":
             const setSources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
+            const setSourcesList = makeSourcesList(setSources);
             return [
                 createSetSourcePopup(item, itemSource),
-                " ",
-                ...makeSourcesList(setSources),
+                ...(setSourcesList.length > 0 ? [" "] : []),
+                ...setSourcesList,
             ];
     }
 }
