@@ -45,7 +45,7 @@ export class ItemSource {
                 return false;
             case "gacha":
             case "set":
-                return !this.item.sources.every(source => source.requiresGuardian);
+                return this.item.sources.every(source => source.requiresGuardian);
         }
     }
     get is_parcel_enabled() {
@@ -131,6 +131,10 @@ class Gacha {
         }
         const total_probability = chars.reduce((p, character) => p + this.character_probability.get(character)!, 0);
         return total_probability / probability;
+    }
+
+    get total_probability() {
+        return characters.reduce((p, character) => p + this.character_probability.get(character)!, 0);
     }
 
     character_probability = new Map<Character, number>();
@@ -583,11 +587,19 @@ function createChancePopup(tries: number) {
 }
 
 function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: Character) {
-    const content = createHTML([
+    const content = character ? createHTML([
         "table",
         [
             "tr",
             ["th", "Item"],
+            ["th", "Average Tries"],
+        ],
+    ]) : createHTML([
+        "table",
+        [
+            "tr",
+            ["th", "Item"],
+            ["th", "Character"],
             ["th", "Average Tries"],
         ],
     ]);
@@ -596,20 +608,41 @@ function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: 
         throw "Internal error";
     }
 
+    const gacha_items = new Map<Item, number>();
     for (const char of character === undefined ? characters : [character]) {
-        const gacha_items = gacha.shop_items.get(char);
-        if (!gacha_items) {
+        const char_items = gacha.shop_items.get(char);
+        if (!char_items) {
             continue;
         }
-        for (const [gacha_item,] of gacha_items) {
+        for (const [char_gacha_item, tickets] of char_items) {
+            const item_character = char_gacha_item.character || character;
+            const item_tickets = item_character ? gacha.character_probability.get(item_character)! : gacha.total_probability;
+            const probability = tickets / item_tickets;
+            const previous_probability = gacha_items.get(char_gacha_item) || 0;
+            gacha_items.set(char_gacha_item, previous_probability + probability);
+        }
+    }
+
+    for (const [char_gacha_item, probability] of gacha_items) {
+        if (character) {
             content.appendChild(createHTML([
                 "tr",
-                item === gacha_item ? { class: "highlighted" } : "",
-                ["td", gacha_item.name_en],
-                ["td", { class: "numeric" }, `${prettyNumber(gacha.average_tries(gacha_item, character), 2)}`],
+                item === char_gacha_item ? { class: "highlighted" } : "",
+                ["td", char_gacha_item.name_en],
+                ["td", { class: "numeric" }, `${prettyNumber(1 / probability, 2)}`],
+            ]));
+        }
+        else {
+            content.appendChild(createHTML([
+                "tr",
+                item === char_gacha_item ? { class: "highlighted" } : "",
+                ["td", char_gacha_item.name_en],
+                ["td", char_gacha_item.character || "*"],
+                ["td", { class: "numeric" }, `${prettyNumber(1 / probability, 2)}`],
             ]));
         }
     }
+
     return createPopupLink(itemSource.item.name_en, [createHTML(["a", gacha.name]), content]);
 }
 
@@ -664,11 +697,16 @@ function makeSourcesList(list: (HTMLElement | string)[][]): (HTMLElement | strin
 function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (itemSource: ItemSource) => boolean, character?: Character): (HTMLElement | string)[] {
     switch (itemSource.type) {
         case "gacha":
-            const sources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
+            const char = itemSource.requiresGuardian ? undefined : character;
+            const sources = itemSourcesToElementArray(itemSource.item, sourceFilter, char);
             const sourcesList = makeSourcesList(sources);
             return [
-                createGachaSourcePopup(item, itemSource, character),
-                createHTML(["a", ` x `, createChancePopup(itemSource.gachaTries(item, character))]),
+                createGachaSourcePopup(item, itemSource, char),
+                createHTML([
+                    "a",
+                    ` x `,
+                    createChancePopup(itemSource.gachaTries(item, character)),
+                ]),
                 ...(sourcesList.length > 0 ? [" "] : []),
                 ...sourcesList,
             ];
@@ -786,7 +824,7 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
         for (const item of result) {
             for (const char of item.character ? [item.character] : characters) {
                 statistics.characters.add(char)
-                table.appendChild(itemToTableRow(item, sourceFilter, isCharacter(character) ? character : undefined));
+                table.appendChild(itemToTableRow(item, sourceFilter, char));
             }
         }
     }
