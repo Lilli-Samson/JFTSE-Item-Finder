@@ -190,6 +190,8 @@ function saveSelection() {
             Variable_storage.delete_variable("nameFilter");
         }
     }
+
+    Variable_storage.set_variable("excluded_item_ids", Array.from(excluded_item_ids).join(","));
 }
 
 function restoreSelection() {
@@ -215,8 +217,8 @@ function restoreSelection() {
         }
         setLeafStates(availabilityFilterList, states);
     }
+    const levelrange = document.getElementById("levelrange");
     { //misc
-        const levelrange = document.getElementById("levelrange");
         if (!(levelrange instanceof HTMLInputElement)) {
             throw "Internal error";
         }
@@ -237,8 +239,18 @@ function restoreSelection() {
             namefilter.value = item_name;
         }
 
-        levelrange.dispatchEvent(new Event("input")); //lasts because it triggers a store
     }
+
+    const excluded_ids = Variable_storage.get_variable("excluded_item_ids");
+    if (typeof excluded_ids === "string") {
+        for (const id of excluded_ids.split(",")) {
+            excluded_item_ids.add(parseInt(id));
+        }
+    }
+    excluded_item_ids.delete(NaN);
+
+    //must be lasts because it triggers a store
+    levelrange.dispatchEvent(new Event("input"));
 }
 
 function updateResults() {
@@ -343,9 +355,7 @@ function updateResults() {
             throw "Internal error";
 
         }
-        for (const child of itemFilterList.children) {
-            child.remove();
-        }
+        itemFilterList.replaceChildren();
         for (const id of excluded_item_ids) {
             const item = items.get(id);
             if (!item) {
