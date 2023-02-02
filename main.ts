@@ -154,19 +154,42 @@ function setSelectedCharacter(character: Character | "All") {
 function saveSelection() {
     const selected_character = getSelectedCharacter() || "All";
     Variable_storage.set_variable("Character", selected_character);
-    const partsFilterList = document.getElementById("partsFilter")?.children[0];
-    if (!(partsFilterList instanceof HTMLUListElement)) {
-        throw "Internal error";
+    {//Filters
+        const partsFilterList = document.getElementById("partsFilter")?.children[0];
+        if (!(partsFilterList instanceof HTMLUListElement)) {
+            throw "Internal error";
+        }
+        for (const [name, value] of Object.entries(getLeafStates(partsFilterList))) {
+            Variable_storage.set_variable(name, value);
+        }
+        const availabilityFilterList = document.getElementById("availabilityFilter")?.children[0];
+        if (!(availabilityFilterList instanceof HTMLUListElement)) {
+            throw "Internal error";
+        }
+        for (const [name, value] of Object.entries(getLeafStates(availabilityFilterList))) {
+            Variable_storage.set_variable(name, value);
+        }
     }
-    for (const [name, value] of Object.entries(getLeafStates(partsFilterList))) {
-        Variable_storage.set_variable(name, value);
-    }
-    const availabilityFilterList = document.getElementById("availabilityFilter")?.children[0];
-    if (!(availabilityFilterList instanceof HTMLUListElement)) {
-        throw "Internal error";
-    }
-    for (const [name, value] of Object.entries(getLeafStates(availabilityFilterList))) {
-        Variable_storage.set_variable(name, value);
+    { //misc
+        const levelrange = document.getElementById("levelrange");
+        if (!(levelrange instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        const maxLevel = parseInt(levelrange.value);
+        Variable_storage.set_variable("maxLevel", maxLevel);
+
+        const namefilter = document.getElementById("nameFilter");
+        if (!(namefilter instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        const item_name = namefilter.value;
+        console.log(`Storing item name filter "${item_name}"`);
+        if (item_name) {
+            Variable_storage.set_variable("nameFilter", item_name);
+        }
+        else {
+            Variable_storage.delete_variable("nameFilter");
+        }
     }
 }
 
@@ -192,6 +215,31 @@ function restoreSelection() {
             throw "Internal error";
         }
         setLeafStates(availabilityFilterList, states);
+    }
+    { //misc
+        const levelrange = document.getElementById("levelrange");
+        if (!(levelrange instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        const maxLevel = Variable_storage.get_variable("maxLevel");
+        if (typeof maxLevel === "number") {
+            levelrange.value = `${maxLevel}`;
+        }
+        else {
+            levelrange.value = levelrange.max;
+        }
+
+        const namefilter = document.getElementById("nameFilter");
+        if (!(namefilter instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        const item_name = Variable_storage.get_variable("nameFilter");
+        console.log(`Restoring item name "${item_name}"`);
+        if (typeof item_name === "string") {
+            namefilter.value = item_name;
+        }
+
+        levelrange.dispatchEvent(new Event("input")); //lasts because it triggers a store
     }
 }
 
@@ -433,8 +481,9 @@ window.addEventListener("load", async () => {
     if (!(levelrange instanceof HTMLInputElement)) {
         throw "Internal error";
     }
-    levelrange.max = `${getMaxItemLevel()}`;
-    levelrange.value = levelrange.max;
+    const maxLevel = getMaxItemLevel();
+    levelrange.value = `${Math.min(parseInt(levelrange.value), maxLevel)}`;
+    levelrange.max = `${maxLevel}`;
     levelrange.dispatchEvent(new Event("input"));
     updateResults();
 });
