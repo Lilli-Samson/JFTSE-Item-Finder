@@ -18,6 +18,9 @@ export class ItemSource {
         readonly ap: boolean,
         readonly guardian_map: string = "",
         readonly items: Item[] = [],
+        readonly xp = 0,
+        readonly need_boss = false,
+        readonly boss_time = 0,
     ) { }
     static forShop(shop_id: number, price: number, ap: boolean) {
         return new ItemSource("shop", shop_id, price, ap);
@@ -28,8 +31,8 @@ export class ItemSource {
     static forGacha(shop_id: number) {
         return new ItemSource("gacha", shop_id, 0, false);
     }
-    static forGuardian(guardian_map: string) {
-        return new ItemSource("guardian", this.guardian_map_id(guardian_map), 0, false, guardian_map);
+    static forGuardian(guardian_map: string, items: Item[], xp: number, need_boss: boolean, boss_time: number) {
+        return new ItemSource("guardian", this.guardian_map_id(guardian_map), 0, false, guardian_map, items, xp, need_boss, boss_time);
     }
     get requiresAP() {
         return this.ap && !!this.price;
@@ -475,15 +478,17 @@ function parseGuardianData(data: string) {
         if (!Array.isArray(rewards)) {
             continue;
         }
-        for (const shop_id of rewards) {
-            if (typeof shop_id !== "number") {
-                continue;
-            }
-            const item = shop_items.get(shop_id);
-            if (!item) {
-                continue;
-            }
-            item.sources.set(ItemSource.guardian_map_id(map_name), ItemSource.forGuardian(map_name));
+        const reward_items = rewards
+            .filter((shop_id): shop_id is number => typeof shop_id === "number" && shop_items.has(shop_id))
+            .map(shop_id => shop_items.get(shop_id)!);
+        const ExpMultiplier = typeof mapInfo.ExpMultiplier === "number" ? mapInfo.ExpMultiplier as number : 0;
+        const IsBossStage = !!mapInfo.IsBossStage;
+        const BossTriggerTimerInSeconds = typeof mapInfo.BossTriggerTimerInSeconds === "number" ? mapInfo.BossTriggerTimerInSeconds as number : -1;
+        for (const item of reward_items) {
+            item.sources.set(
+                ItemSource.guardian_map_id(map_name),
+                ItemSource.forGuardian(map_name, reward_items, ExpMultiplier, IsBossStage, BossTriggerTimerInSeconds)
+            );
         }
     }
 }
@@ -673,6 +678,22 @@ function createSetSourcePopup(item: Item, itemSource: ItemSource) {
     return createPopupLink(itemSource.item.name_en, [createHTML(["a", itemSource.item.name_en, contentTable])]);
 }
 
+function createGuardianPopup(item: Item, itemSource: ItemSource) {
+    const content = [
+        `Items:`,
+        ...itemSource.items.reduce(
+            (curr, reward_item) =>
+                [...curr, curr.length > 0 ? ", " : " ", reward_item === item ? createHTML(["b", reward_item.name_en]) : reward_item.name_en],
+            [] as (HTMLElement | string)[]
+        ),
+        createHTML(["br"]),
+        `Requires boss: ${itemSource.need_boss ? "Yes" : "No"}`,
+        createHTML(["br"]),
+        `EXP multiplier: ${itemSource.xp}`
+    ];
+    return createPopupLink(itemSource.guardian_map, content);
+}
+
 function itemSourcesToElementArray(
     item: Item,
     sourceFilter: (itemSource: ItemSource) => boolean,
@@ -732,7 +753,7 @@ function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (it
         case "shop":
             return [`${itemSource.price} ${itemSource.ap ? "AP" : "Gold"}`];
         case "guardian":
-            return [itemSource.guardian_map];
+            return [createGuardianPopup(item, itemSource)];
         case "set":
             const setSources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
             const setSourcesList = makeSourcesList(setSources);
@@ -824,6 +845,9 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
         "Serve": 0,
         "HP": 0,
         "Level": 0,
+        "Gold cost": 0,
+        "AP cost": 0,
+        "Guardian games": 0
     };
     for (const result of Object.values(results)) {
         if (result.length === 0) {
