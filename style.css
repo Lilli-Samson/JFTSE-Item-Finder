@@ -72,7 +72,8 @@ td.numeric {
     text-align: right;
 }
 
-tr.highlighted {
+tr.highlighted,
+li.highlighted {
     font-weight: bold;
 }
 
@@ -94,6 +95,10 @@ button.item_removal_removal {
 }
 
 ul.checkbox {
+    list-style-type: none;
+}
+
+ul.layout {
     list-style-type: none;
 }
 

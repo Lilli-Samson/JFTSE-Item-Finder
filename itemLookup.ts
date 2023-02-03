@@ -466,6 +466,12 @@ function parseGuardianData(data: string) {
     if (!Array.isArray(guardianData)) {
         return;
     }
+    function getNumber(o: any) {
+        if (typeof o === "number") {
+            return o;
+        }
+    }
+    const bossTimeInfo = new Map<number, number>();
     for (const mapInfo of guardianData) {
         if (typeof mapInfo !== "object") {
             continue;
@@ -474,16 +480,22 @@ function parseGuardianData(data: string) {
         if (typeof map_name !== "string") {
             continue;
         }
-        const rewards = mapInfo.Rewards;
-        if (!Array.isArray(rewards)) {
-            continue;
-        }
+        const rewards = Array.isArray(mapInfo.Rewards) ? [...mapInfo.Rewards] : [];
         const reward_items = rewards
             .filter((shop_id): shop_id is number => typeof shop_id === "number" && shop_items.has(shop_id))
             .map(shop_id => shop_items.get(shop_id)!);
-        const ExpMultiplier = typeof mapInfo.ExpMultiplier === "number" ? mapInfo.ExpMultiplier as number : 0;
+        const ExpMultiplier = getNumber(mapInfo.ExpMultiplier) || 0;
         const IsBossStage = !!mapInfo.IsBossStage;
-        const BossTriggerTimerInSeconds = typeof mapInfo.BossTriggerTimerInSeconds === "number" ? mapInfo.BossTriggerTimerInSeconds as number : -1;
+        const MapID = getNumber(mapInfo.MapId) || 0;
+        let BossTriggerTimerInSeconds = getNumber(mapInfo.BossTriggerTimerInSeconds) || -1;
+        if (BossTriggerTimerInSeconds === -1) {
+            BossTriggerTimerInSeconds = bossTimeInfo.get(MapID) || -1;
+        }
+        else {
+            if (MapID !== 0) {
+                bossTimeInfo.set(MapID, BossTriggerTimerInSeconds);
+            }
+        }
         for (const item of reward_items) {
             item.sources.set(
                 ItemSource.guardian_map_id(map_name),
@@ -678,18 +690,29 @@ function createSetSourcePopup(item: Item, itemSource: ItemSource) {
     return createPopupLink(itemSource.item.name_en, [createHTML(["a", itemSource.item.name_en, contentTable])]);
 }
 
+function prettyTime(seconds: number) {
+    return `${Math.floor(seconds / 60)}:${`${seconds % 60}`.padStart(2, "0")}`;
+}
+
 function createGuardianPopup(item: Item, itemSource: ItemSource) {
     const content = [
-        `Items:`,
-        ...itemSource.items.reduce(
-            (curr, reward_item) =>
-                [...curr, curr.length > 0 ? ", " : " ", reward_item === item ? createHTML(["b", reward_item.name_en]) : reward_item.name_en],
-            [] as (HTMLElement | string)[]
-        ),
-        createHTML(["br"]),
-        `Requires boss: ${itemSource.need_boss ? "Yes" : "No"}`,
-        createHTML(["br"]),
-        `EXP multiplier: ${itemSource.xp}`
+        `Guardian map ${itemSource.guardian_map}`,
+        createHTML(
+            [
+                "ul", { class: "layout" },
+                ["li", "Items:"],
+                ["ul", { class: "layout" },
+                    ...itemSource.items.reduce(
+                        (curr, reward_item) =>
+                            [...curr, createHTML(["li", { class: reward_item === item ? "highlighted" : "" }, reward_item.name_en])],
+                        [] as (HTMLElement | string)[]
+                    ),
+                ],
+                ["li", `Requires boss: ${itemSource.need_boss ? "Yes" : "No"}`],
+                ...(itemSource.boss_time > 0 ? [createHTML(["li", `Boss time: ${prettyTime(itemSource.boss_time)}`])] : []),
+                ["li", `EXP multiplier: ${itemSource.xp}`],
+            ]
+        )
     ];
     return createPopupLink(itemSource.guardian_map, content);
 }
