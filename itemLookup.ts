@@ -700,13 +700,14 @@ function createGuardianPopup(item: Item, itemSource: ItemSource) {
         createHTML(
             [
                 "ul", { class: "layout" },
-                ["li", "Items:"],
-                ["ul", { class: "layout" },
-                    ...itemSource.items.reduce(
-                        (curr, reward_item) =>
-                            [...curr, createHTML(["li", { class: reward_item === item ? "highlighted" : "" }, reward_item.name_en])],
-                        [] as (HTMLElement | string)[]
-                    ),
+                ["li", "Items:",
+                    ["ul", { class: "layout" },
+                        ...itemSource.items.reduce(
+                            (curr, reward_item) =>
+                                [...curr, createHTML(["li", { class: reward_item === item ? "highlighted" : "" }, reward_item.name_en])],
+                            [] as (HTMLElement | string)[]
+                        ),
+                    ],
                 ],
                 ["li", `Requires boss: ${itemSource.need_boss ? "Yes" : "No"}`],
                 ...(itemSource.boss_time > 0 ? [createHTML(["li", `Boss time: ${prettyTime(itemSource.boss_time)}`])] : []),
@@ -765,11 +766,8 @@ function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (it
             const sourcesList = makeSourcesList(sources);
             return [
                 createGachaSourcePopup(item, itemSource, char),
-                createHTML([
-                    "a",
-                    ` x `,
-                    createChancePopup(itemSource.gachaTries(item, character)),
-                ]),
+                ` x `,
+                createChancePopup(itemSource.gachaTries(item, character)),
                 ...(sourcesList.length > 0 ? [" "] : []),
                 ...sourcesList,
             ];
