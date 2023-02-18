@@ -8,52 +8,24 @@ export function isCharacter(character: string): character is Character {
 
 export type Part = "Hat" | "Hair" | "Dye" | "Upper" | "Lower" | "Shoes" | "Socks" | "Hand" | "Backpack" | "Face" | "Racket" | "Other";
 
-type ItemSourceType = "shop" | "set" | "gacha" | "guardian";
-
 export class ItemSource {
-    private constructor(
-        readonly type: ItemSourceType,
-        readonly shop_id: number,
-        readonly price: number,
-        readonly ap: boolean,
-        readonly guardian_map: string = "",
-        readonly items: Item[] = [],
-        readonly xp = 0,
-        readonly need_boss = false,
-        readonly boss_time = 0,
-    ) { }
-    static forShop(shop_id: number, price: number, ap: boolean) {
-        return new ItemSource("shop", shop_id, price, ap);
-    }
-    static forSet(shop_id: number, items: Item[]) {
-        return new ItemSource("set", shop_id, 0, false, "", items);
-    }
-    static forGacha(shop_id: number) {
-        return new ItemSource("gacha", shop_id, 0, false);
-    }
-    static forGuardian(guardian_map: string, items: Item[], xp: number, need_boss: boolean, boss_time: number) {
-        return new ItemSource("guardian", this.guardian_map_id(guardian_map), 0, false, guardian_map, items, xp, need_boss, boss_time);
-    }
-    get requiresAP() {
-        return this.ap && !!this.price;
-    }
-    get requiresGold() {
-        return !this.ap && !!this.price;
-    }
+    constructor(readonly shop_id: number) { }
+
     get requiresGuardian(): boolean {
-        switch (this.type) {
-            case "guardian":
-                return true;
-            case "shop":
-                return false;
-            case "gacha":
-            case "set":
-                return [...this.item.sources.values()].every(source => source.requiresGuardian);
+        if (this instanceof ShopItemSource) {
+            return false;
+        }
+        else if (this instanceof GachaItemSource) {
+            return [...this.item.sources.values()].every(source => source.requiresGuardian);
+        }
+        else if (this instanceof GuardianItemSource) {
+            return true;
+        }
+        else {
+            throw "Internal error";
         }
     }
-    get is_parcel_enabled() {
-        return this.item.parcel_enabled;
-    }
+
     get item() {
         const item = shop_items.get(this.shop_id);
         if (!item) {
@@ -62,6 +34,19 @@ export class ItemSource {
         }
         return item;
     }
+}
+
+export class ShopItemSource extends ItemSource {
+    constructor(shop_id: number, readonly price: number, readonly ap: boolean, readonly items: Item[]) {
+        super(shop_id);
+    }
+}
+
+export class GachaItemSource extends ItemSource {
+    constructor(shop_id: number) {
+        super(shop_id);
+    }
+
     gachaTries(item: Item, character?: Character) {
         const gacha = gachas.get(this.shop_id);
         if (!gacha) {
@@ -69,6 +54,18 @@ export class ItemSource {
         }
         return gacha.average_tries(item, character);
     }
+}
+
+export class GuardianItemSource extends ItemSource {
+    constructor(
+        readonly guardian_map: string,
+        readonly items: Item[],
+        readonly xp: number,
+        readonly need_boss: boolean,
+        readonly boss_time: number) {
+        super(GuardianItemSource.guardian_map_id(guardian_map));
+    }
+
     static guardian_map_id(map: string) {
         let index = this.guardian_maps.indexOf(map);
         if (index === -1) {
@@ -77,6 +74,7 @@ export class ItemSource {
         }
         return -index;
     }
+
     private static guardian_maps = [""];
 }
 
@@ -116,7 +114,7 @@ export class Item {
     socket = 0;
     gauge = 0;
     gauge_battle = 0;
-    sources = new Map<number, ItemSource>();
+    sources: ItemSource[] = [];
 }
 
 class Gacha {
@@ -388,23 +386,18 @@ function parseShopData(data: string) {
         const inner_items = itemIDs.filter(id => !!id && items.get(id)).map(id => items.get(id)!);
 
         if (category === "PARTS") {
-            const itemSource = ItemSource.forShop(index, price, price_type === "ap");
             if (inner_items.length === 1) {
                 shop_items.set(index, inner_items[0]);
-                if (enabled) {
-                    inner_items[0].sources.set(itemSource.shop_id, itemSource);
-                }
             }
-            else { //set item
-                const setItem = new Item();
-                setItem.name_en = match.groups.name_en || match.groups.name;
-                shop_items.set(index, setItem);
-                if (enabled) {
-                    setItem.sources.set(itemSource.shop_id, itemSource);
-                }
-                const setSource = ItemSource.forSet(index, inner_items);
+            else {
+                const item = new Item();
+                item.name_en = match.groups.name_en || match.groups.name;
+                shop_items.set(index, item);
+            }
+            if (enabled) {
+                const itemSource = new ShopItemSource(index, price, price_type === "ap", inner_items);
                 for (const item of inner_items) {
-                    item.sources.set(setSource.shop_id, setSource);
+                    item.sources.push(itemSource);
                 }
             }
         }
@@ -413,7 +406,7 @@ function parseShopData(data: string) {
             gachaItem.name_en = match.groups.name_en || match.groups.name;
             shop_items.set(index, gachaItem);
             if (enabled) {
-                gachaItem.sources.set(index, ItemSource.forShop(index, price, price_type === "ap"));
+                gachaItem.sources.push(new ShopItemSource(index, price, price_type === "ap", inner_items));
             }
         }
         else {
@@ -456,7 +449,7 @@ function parseGachaData(data: string, gacha: Gacha) {
     }
     for (const [, map] of gacha.shop_items) {
         for (const [item,] of map) {
-            item.sources.set(gacha.shop_index, ItemSource.forGacha(gacha.shop_index));
+            item.sources.push(new GachaItemSource(gacha.shop_index));
         }
     }
 }
@@ -497,10 +490,8 @@ function parseGuardianData(data: string) {
             }
         }
         for (const item of reward_items) {
-            item.sources.set(
-                ItemSource.guardian_map_id(map_name),
-                ItemSource.forGuardian(map_name, reward_items, ExpMultiplier, IsBossStage, BossTriggerTimerInSeconds)
-            );
+            const guardianSource = new GuardianItemSource(map_name, reward_items, ExpMultiplier, IsBossStage, BossTriggerTimerInSeconds);
+            item.sources.push(guardianSource);
         }
     }
 }
@@ -682,7 +673,7 @@ function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: 
     return createPopupLink(itemSource.item.name_en, [createHTML(["a", gacha.name]), content]);
 }
 
-function createSetSourcePopup(item: Item, itemSource: ItemSource) {
+function createSetSourcePopup(item: Item, itemSource: ShopItemSource) {
     const contentTable = createHTML(["table", ["tr", ["th", "Contents"]]]);
     for (const inner_item of itemSource.items) {
         contentTable.appendChild(createHTML(["tr", inner_item === item ? { class: "highlighted" } : "", ["td", inner_item.name_en]]));
@@ -694,7 +685,7 @@ function prettyTime(seconds: number) {
     return `${Math.floor(seconds / 60)}:${`${seconds % 60}`.padStart(2, "0")}`;
 }
 
-function createGuardianPopup(item: Item, itemSource: ItemSource) {
+function createGuardianPopup(item: Item, itemSource: GuardianItemSource) {
     const content = [
         `Guardian map ${itemSource.guardian_map}`,
         createHTML(
@@ -759,30 +750,32 @@ function makeSourcesList(list: (HTMLElement | string)[][]): (HTMLElement | strin
 }
 
 function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (itemSource: ItemSource) => boolean, character?: Character): (HTMLElement | string)[] {
-    switch (itemSource.type) {
-        case "gacha":
-            const char = itemSource.requiresGuardian ? undefined : character;
-            const sources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
-            const sourcesList = makeSourcesList(sources);
-            return [
-                createGachaSourcePopup(item, itemSource, char),
-                ` x `,
-                createChancePopup(itemSource.gachaTries(item, character)),
-                ...(sourcesList.length > 0 ? [" "] : []),
-                ...sourcesList,
-            ];
-        case "shop":
+    if (itemSource instanceof GachaItemSource) {
+        const char = itemSource.requiresGuardian ? undefined : character;
+        const sources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
+        const sourcesList = makeSourcesList(sources);
+        return [
+            createGachaSourcePopup(item, itemSource, char),
+            ` x `,
+            createChancePopup(itemSource.gachaTries(item, character)),
+            ...(sourcesList.length > 0 ? [" "] : []),
+            ...sourcesList,
+        ];
+    }
+    else if (itemSource instanceof ShopItemSource) {
+        if (itemSource.items.length === 1) {
             return [`${itemSource.price} ${itemSource.ap ? "AP" : "Gold"}`];
-        case "guardian":
-            return [createGuardianPopup(item, itemSource)];
-        case "set":
-            const setSources = itemSourcesToElementArray(itemSource.item, sourceFilter, character);
-            const setSourcesList = makeSourcesList(setSources);
-            return [
-                createSetSourcePopup(item, itemSource),
-                ...(setSourcesList.length > 0 ? [" "] : []),
-                ...setSourcesList,
-            ];
+        }
+        return [
+            createSetSourcePopup(item, itemSource),
+            ` ${itemSource.price} ${itemSource.ap ? "AP" : "Gold"}`
+        ];
+    }
+    else if (itemSource instanceof GuardianItemSource) {
+        return [createGuardianPopup(item, itemSource)];
+    }
+    else {
+        throw "Internal error";
     }
 }
 
@@ -810,7 +803,7 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
     return row;
 }
 
-export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (itemSource: ItemSource) => boolean, priorizer: (items: Item[], item: Item) => Item[], character: string): HTMLTableElement {
+export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (itemSource: ItemSource) => boolean, priorizer: (items: Item[], item: Item) => Item[], character?: Character): HTMLTableElement {
     const results: { [key: string]: Item[] } = {
         "Hat": [],
         "Hair": [],
@@ -853,22 +846,120 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
             ]
         ]
     );
+
+    type MapOptions = { [key: string]: number[] };
+
+    type Cost = {
+        gold: number,
+        ap: number,
+        maps: MapOptions,
+    };
+
+    function combineMaps(m1: MapOptions, m2: MapOptions): MapOptions {
+        const result = { ...m1 };
+        for (const [map, tries] of Object.entries(m2)) {
+            if (result[map]) {
+                result[map] = result[map].concat(tries);
+            }
+            else {
+                result[map] = tries;
+            }
+        }
+        return result;
+    }
+
+    function combineCosts(cost1: Cost, cost2: Cost): Cost {
+        return {
+            gold: cost1.gold + cost2.gold,
+            ap: cost1.ap + cost2.ap,
+            maps: combineMaps(cost1.maps, cost2.maps),
+        };
+    }
+
+    function minMap(m1: MapOptions, m2: MapOptions): MapOptions {
+        const result = { ...m1 };
+        for (const [map, tries] of Object.entries(m2)) {
+            if (tries.length !== 1) {
+                throw "Internal error";
+            }
+            if (result[map]) {
+                result[map] = [Math.min(result[map][0], tries[0])];
+            }
+            else {
+                result[map] = tries;
+            }
+        }
+        return result;
+    }
+
+    function minCost(cost1: Cost, cost2: Cost): Cost {
+        return [cost1.ap, cost1.gold] < [cost1.ap, cost1.gold] ?
+            {
+                gold: cost1.gold,
+                ap: cost1.ap,
+                maps: minMap(cost1.maps, cost2.maps),
+            } :
+            {
+                gold: cost2.gold,
+                ap: cost2.ap,
+                maps: minMap(cost1.maps, cost2.maps),
+            };
+    }
+
+    function costOf(item: Item, character?: Character): Cost {
+        return [...item.sources.values()]
+            .filter(sourceFilter)
+            .reduce((curr, itemSource) => {
+                const cost = (() => {
+                    if (itemSource instanceof ShopItemSource) {
+                        if (itemSource.ap) {
+                            return { gold: 0, ap: itemSource.price, maps: {} };
+                        }
+                        return { gold: itemSource.price, ap: 0, maps: {} };
+                    }
+                    else if (itemSource instanceof GachaItemSource) {
+                        const singleCost = costOf(itemSource.item, character);
+                        const multiplier = itemSource.gachaTries(item, character);
+                        return {
+                            gold: singleCost.gold * multiplier,
+                            ap: singleCost.ap * multiplier,
+                            maps: Object.fromEntries(
+                                Object.entries(singleCost.maps)
+                                    .map(([map, tries]) => [map, tries.map(n => n * multiplier)])
+                            )
+                        };
+                    }
+                    else if (itemSource instanceof GuardianItemSource) {
+                        return {
+                            gold: 0,
+                            ap: 0,
+                            maps: Object.fromEntries([[itemSource.guardian_map, [itemSource.items.length]]])
+                        };
+                    }
+                    else {
+                        throw "Internal error";
+                    }
+                })();
+                return minCost(curr, cost);
+            },
+                { gold: 0, ap: 0, maps: {} }
+            );
+    }
+
     const statistics = {
-        "characters": new Set<Character>,
-        "Str": 0,
-        "Sta": 0,
-        "Dex": 0,
-        "Wil": 0,
-        "Smash": 0,
-        "Movement": 0,
-        "Charge": 0,
-        "Lob": 0,
-        "Serve": 0,
-        "HP": 0,
-        "Level": 0,
-        "Gold cost": 0,
-        "AP cost": 0,
-        "Guardian games": 0
+        characters: new Set<Character>,
+        Str: 0,
+        Sta: 0,
+        Dex: 0,
+        Wil: 0,
+        Smash: 0,
+        Movement: 0,
+        Charge: 0,
+        Lob: 0,
+        Serve: 0,
+        HP: 0,
+        Level: 0,
+        cost: { ap: 0, gold: 0, maps: {} } as Cost,
     };
     for (const result of Object.values(results)) {
         if (result.length === 0) {
@@ -885,14 +976,25 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
         statistics.Serve += result[0].serve;
         statistics.HP += result[0].hp;
         statistics.Level = Math.max(result[0].level, statistics.Level);
+
         for (const item of result) {
             for (const char of item.character ? [item.character] : characters) {
                 statistics.characters.add(char)
                 table.appendChild(itemToTableRow(item, sourceFilter, char));
             }
+            statistics.cost = combineCosts(costOf(item, character && isCharacter(character) ? character : undefined), statistics.cost);
         }
     }
+
     if (statistics.characters.size === 1) {
+        const total_sources: string[] = [];
+        if (statistics.cost.gold > 0) {
+            total_sources.push(`${statistics.cost.gold.toFixed(0)} Gold`);
+        }
+        if (statistics.cost.ap > 0) {
+            total_sources.push(`${statistics.cost.ap.toFixed(0)} AP`);
+        }
+        //statistics['Guardian games'].forEach((count, map) => total_sources.push(`${count.toFixed(0)} x ${map}`));
         table.appendChild(createHTML(
             ["tr",
                 ["td", { class: "total Name_column" }, "Total:"],
@@ -910,7 +1012,7 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
                 ["td", { class: "total Serve_column numeric" }, `${statistics.Serve}`],
                 ["td", { class: "total HP_column numeric" }, `${statistics.HP}`],
                 ["td", { class: "total Level_column numeric" }, `${statistics.Level}`],
-                ["td", { class: "total Source_column" }],
+                ["td", { class: "total Source_column" }, total_sources.join(", ")],
             ]
         ));
         for (const column_element of table.getElementsByClassName(`Character_column`)) {

@@ -1,5 +1,5 @@
 import { makeCheckboxTree, TreeNode, getLeafStates, setLeafStates } from './checkboxTree';
-import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, Character, characters, isCharacter } from './itemLookup';
+import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, Character, characters, isCharacter, ShopItemSource, GachaItemSource } from './itemLookup';
 import { createHTML } from './html';
 import { Variable_storage } from './storage';
 
@@ -257,10 +257,10 @@ function updateResults() {
     saveSelection();
     const filters: ((item: Item) => boolean)[] = [];
     const sourceFilters: ((itemSource: ItemSource) => boolean)[] = [];
-    let selected_character = "";
+    let selected_character: Character | undefined;
 
     { //character filter
-        const selected_character = getSelectedCharacter();
+        selected_character = getSelectedCharacter();
         if (selected_character) {
             filters.push(item => item.character === selected_character);
         }
@@ -282,16 +282,16 @@ function updateResults() {
         }
         const availabilityStates = getLeafStates(availabilityFilterList);
         if (!availabilityStates["Gold"]) {
-            sourceFilters.push(itemSource => !itemSource.requiresGold);
+            sourceFilters.push(itemSource => !(itemSource instanceof ShopItemSource && !itemSource.ap && itemSource.price > 0));
         }
         if (!availabilityStates["AP"]) {
-            sourceFilters.push(itemSource => !itemSource.requiresAP);
+            sourceFilters.push(itemSource => !(itemSource instanceof ShopItemSource && itemSource.ap && itemSource.price > 0));
         }
         if (!availabilityStates["Untradable"]) {
             filters.push(item => item.parcel_enabled);
         }
         if (!availabilityStates["Allow gacha"]) {
-            sourceFilters.push(itemSource => itemSource.type !== "gacha");
+            sourceFilters.push(itemSource => !(itemSource instanceof GachaItemSource));
         }
         if (!availabilityStates["Guardian"]) {
             sourceFilters.push(itemSource => !itemSource.requiresGuardian);
@@ -303,8 +303,8 @@ function updateResults() {
                 if (!sourceFilter(itemSource)) {
                     return false;
                 }
-                if (itemSource.type === "gacha" || itemSource.type === "set") {
-                    for (const [, source] of itemSource.item.sources) {
+                if (itemSource instanceof GachaItemSource) {
+                    for (const source of itemSource.item.sources) {
                         if (isAvailableSource(source)) {
                             return true;
                         }
@@ -318,11 +318,10 @@ function updateResults() {
             sourceFilters.push(isAvailableSource);
 
             function isAvailableItem(item: Item): boolean {
-                for (const [, itemSource] of item.sources) {
-                    if (!isAvailableSource(itemSource)) {
-                        continue;
+                for (const itemSource of item.sources) {
+                    if (isAvailableSource(itemSource)) {
+                        return true;
                     }
-                    return true;
                 }
                 return false;
             }
