@@ -79,6 +79,8 @@ function addFilterTrees() {
 addFilterTrees();
 
 let dragged: HTMLElement;
+const dragSeparatorLine = createHTML(["hr", { id: "dragOverBar" }]);
+let dragHighlightedElement: HTMLElement | undefined;
 
 function applyDragDrop() {
     document.addEventListener("dragstart", ({ target }) => {
@@ -89,34 +91,87 @@ function applyDragDrop() {
     });
 
     document.addEventListener("dragover", (event) => {
+        if (!(event.target instanceof HTMLElement)) {
+            return;
+        }
+        if (event.target.className === "dropzone") {
+            const targetRect = event.target.getBoundingClientRect();
+            const y = event.clientY - targetRect.top;
+            const height = targetRect.height;
+            enum Position {
+                above,
+                on,
+                below,
+            }
+            const position = y < height * 0.3 ? Position.above : y > height * 0.7 ? Position.below : Position.on;
+            switch (position) {
+                case Position.above:
+                    if (dragHighlightedElement) {
+                        dragHighlightedElement.classList.remove("drophover");
+                        dragHighlightedElement = undefined;
+                    }
+                    dragSeparatorLine.hidden = false;
+                    event.target.before(dragSeparatorLine);
+                    break;
+                case Position.below:
+                    if (dragHighlightedElement) {
+                        dragHighlightedElement.classList.remove("drophover");
+                        dragHighlightedElement = undefined;
+                    }
+                    dragSeparatorLine.hidden = false;
+                    event.target.after(dragSeparatorLine);
+                    break;
+                case Position.on:
+                    dragSeparatorLine.hidden = true;
+                    if (dragHighlightedElement) {
+                        dragHighlightedElement.classList.remove("drophover");
+                    }
+                    if (dragged === event.target) {
+                        break;
+                    }
+                    dragHighlightedElement = event.target;
+                    dragHighlightedElement.classList.add("drophover");
+                    break;
+            }
+        }
         event.preventDefault();
     });
 
     document.addEventListener("drop", ({ target }) => {
+        if (!dragSeparatorLine.hidden) {
+            dragged.remove();
+            dragSeparatorLine.after(dragged);
+            dragSeparatorLine.hidden = true;
+            updateResults();
+            return;
+        }
+        dragSeparatorLine.hidden = true;
         if (!(target instanceof HTMLElement)) {
             return;
         }
-        if (target.className == "dropzone" && target !== dragged) {
-            if (dragged.parentNode !== target.parentNode) { //disallow dragging across different lists
+        if (dragHighlightedElement) {
+            dragHighlightedElement.classList.remove("drophover");
+            const dropTarget = dragHighlightedElement;
+            dragHighlightedElement = undefined;
+            if (!(dropTarget instanceof HTMLLIElement)) {
                 return;
             }
-            const list = Array.from(dragged.parentNode?.children ?? new HTMLCollection);
-            const index = list.indexOf(dragged);
+            dropTarget.textContent += `+${dragged.textContent}`;
             dragged.remove();
-            if (index > list.indexOf(target)) {
-                target.before(dragged);
-            } else {
-                target.after(dragged);
-            }
-            updateResults();
         }
+        if (target === dragged) {
+            const stats = dragged.textContent!.split("+");
+            dragged.textContent = stats.shift()!;
+            dragged.after(...stats.map(stat => createHTML(["li", { class: "dropzone", draggable: "true" }, stat])));
+        }
+        updateResults();
     });
 }
 
 applyDragDrop();
 
-function compare(lhs: number, rhs: number) {
-    if (lhs == rhs) {
+function compare(lhs: number, rhs: number): -1 | 0 | 1 {
+    if (lhs === rhs) {
         return 0;
     }
     return lhs < rhs ? -1 : 1;
@@ -372,49 +427,46 @@ function updateResults() {
         if (!(priorityList instanceof HTMLOListElement)) {
             throw "Internal error";
         }
-        const texts = Array.from(priorityList.childNodes).filter(node => !node.textContent?.includes('\n')).map(node => node.textContent);
-        for (const text of texts) {
-            switch (text) {
+        const texts = Array
+            .from(priorityList.childNodes)
+            .filter(node => !node.textContent?.includes('\n'))
+            .filter(node => node.textContent)
+            .map(node => node.textContent!);
+        function getStat(item: Item, name: string): number {
+            switch (name) {
                 case "Movement Speed":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.movement, rhs.movement));
-                    break;
+                    return item.movement;
                 case "Charge":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.charge, rhs.charge));
-                    break;
+                    return item.charge;
                 case "Lob":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.lob, rhs.lob));
-                    break;
+                    return item.lob;
                 case "Str":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.str, rhs.str));
-                    break;
+                    return item.str;
                 case "Dex":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.dex, rhs.dex));
-                    break;
+                    return item.dex;
                 case "Sta":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.sta, rhs.sta));
-                    break;
+                    return item.sta;
                 case "Will":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.wil, rhs.wil));
-                    break;
+                    return item.wil;
                 case "Serve":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.serve, rhs.serve));
-                    break;
+                    return item.serve;
                 case "Quickslots":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.quickslots, rhs.quickslots));
-                    break;
+                    return item.quickslots;
                 case "Buffslots":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.buffslots, rhs.buffslots));
-                    break;
+                    return item.buffslots;
                 case "HP":
-                    comparators.push((lhs: Item, rhs: Item) => compare(lhs.hp, rhs.hp));
-                    break;
-                //case "AP cost":
-                //    comparators.push((lhs: Item, rhs: Item) => compare(lhs. , rhs.));
-                //    break;
-                //case "Gold cost":
-                //    comparators.push((lhs: Item, rhs: Item) => compare(lhs. , rhs.));
-                //    break;
+                    return item.hp;
+                default:
+                    throw "Internal error";
             }
+        }
+        for (const text of texts) {
+            getStat;
+            const stats = text.split("+");
+            comparators.push((lhs: Item, rhs: Item) => compare(
+                stats.map(stat => getStat(lhs, stat)).reduce((n, m) => n + m),
+                stats.map(stat => getStat(rhs, stat)).reduce((n, m) => n + m)
+            ));
         }
     }
 

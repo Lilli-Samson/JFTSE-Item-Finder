@@ -37,6 +37,10 @@ li.dropzone:active {
     cursor: grabbing;
 }
 
+li.drophover {
+    background-color: lightblue;
+}
+
 [hidden] {
     display: none;
 }
@@ -108,4 +112,9 @@ a.popup_link {
 
 dialog {
     width: max-content;
+}
+
+hr#dragOverBar {
+    margin: 0;
+    color: lightblue;
 }
