@@ -115,6 +115,34 @@ export class Item {
     gauge = 0;
     gauge_battle = 0;
     sources: ItemSource[] = [];
+    statFromString(name: string): number {
+        switch (name) {
+            case "Mov Speed":
+                return this.movement;
+            case "Charge":
+                return this.charge;
+            case "Lob":
+                return this.lob;
+            case "Str":
+                return this.str;
+            case "Dex":
+                return this.dex;
+            case "Sta":
+                return this.sta;
+            case "Will":
+                return this.wil;
+            case "Serve":
+                return this.serve;
+            case "Quickslots":
+                return this.quickslots;
+            case "Buffslots":
+                return this.buffslots;
+            case "HP":
+                return this.hp;
+            default:
+                throw "Internal error";
+        }
+    }
 }
 
 class Gacha {
@@ -779,23 +807,13 @@ function sourceItemElement(item: Item, itemSource: ItemSource, sourceFilter: (it
     }
 }
 
-function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean, character?: Character): HTMLTableRowElement {
+function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => boolean, priorityStats: string[], character?: Character): HTMLTableRowElement {
     const row = createHTML(
         ["tr",
             ["td", { class: "Name_column" }, deletableItem(item.name_en, item.id)],
-            ["td", { class: "ID_column numeric" }, `${item.id}`],
             ["td", { class: "Character_column" }, item.character ?? "All"],
             ["td", { class: "Part_column" }, item.part],
-            ["td", { class: "Str_column numeric" }, `${item.str}`],
-            ["td", { class: "Sta_column numeric" }, `${item.sta}`],
-            ["td", { class: "Dex_column numeric" }, `${item.dex}`],
-            ["td", { class: "Wil_column numeric" }, `${item.wil}`],
-            ["td", { class: "Smash_column numeric" }, `${item.smash}`],
-            ["td", { class: "Movement_column numeric" }, `${item.movement}`],
-            ["td", { class: "Charge_column numeric" }, `${item.charge}`],
-            ["td", { class: "Lob_column numeric" }, `${item.lob}`],
-            ["td", { class: "Serve_column numeric" }, `${item.serve}`],
-            ["td", { class: "HP_column numeric" }, `${item.hp}`],
+            ...priorityStats.map(stat => createHTML(["td", { class: "numeric" }, stat.split("+").map(s => item.statFromString(s)).join("+")])),
             ["td", { class: "Level_column numeric" }, `${item.level}`],
             ["td", { class: "Source_column" }, ...makeSourcesList(itemSourcesToElementArray(item, sourceFilter, character))],
         ]
@@ -803,7 +821,12 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
     return row;
 }
 
-export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (itemSource: ItemSource) => boolean, priorizer: (items: Item[], item: Item) => Item[], character?: Character): HTMLTableElement {
+export function getResultsTable(
+    filter: (item: Item) => boolean,
+    sourceFilter: (itemSource: ItemSource) => boolean,
+    priorizer: (items: Item[], item: Item) => Item[],
+    priorityStats: string[],
+    character?: Character): HTMLTableElement {
     const results: { [key: string]: Item[] } = {
         "Hat": [],
         "Hair": [],
@@ -828,19 +851,9 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
         ["table",
             ["tr",
                 ["th", { class: "Name_column" }, "Name"],
-                ["th", { class: "ID_column numeric" }, "ID"],
                 ["th", { class: "Character_column" }, "Character"],
                 ["th", { class: "Part_column" }, "Part"],
-                ["th", { class: "Str_column numeric" }, "Str"],
-                ["th", { class: "Sta_column numeric" }, "Sta"],
-                ["th", { class: "Dex_column numeric" }, "Dex"],
-                ["th", { class: "Wil_column numeric" }, "Wil"],
-                ["th", { class: "Smash_column numeric" }, "Smash"],
-                ["th", { class: "Movement_column numeric" }, "Movement"],
-                ["th", { class: "Charge_column numeric" }, "Charge"],
-                ["th", { class: "Lob_column numeric" }, "Lob"],
-                ["th", { class: "Serve_column numeric" }, "Serve"],
-                ["th", { class: "HP_column numeric" }, "HP"],
+                ...priorityStats.map(stat => createHTML(["th", { class: "numeric" }, stat])),
                 ["th", { class: "Level_column numeric" }, "Level"],
                 ["th", { class: "Source_column" }, "Source"],
             ]
@@ -948,39 +961,32 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
 
     const statistics = {
         characters: new Set<Character>,
-        Str: 0,
-        Sta: 0,
-        Dex: 0,
-        Wil: 0,
-        Smash: 0,
-        Movement: 0,
-        Charge: 0,
-        Lob: 0,
-        Serve: 0,
-        HP: 0,
+        ...priorityStats.reduce((curr, stat) => ({ ...curr, [stat]: 0 }), {}),
         Level: 0,
         cost: { ap: 0, gold: 0, maps: {} } as Cost,
     };
+
     for (const result of Object.values(results)) {
         if (result.length === 0) {
             continue;
         }
-        statistics.Str += result[0].str;
-        statistics.Sta += result[0].sta;
-        statistics.Dex += result[0].dex;
-        statistics.Wil += result[0].wil;
-        statistics.Smash += result[0].smash;
-        statistics.Movement += result[0].movement;
-        statistics.Charge += result[0].charge;
-        statistics.Lob += result[0].lob;
-        statistics.Serve += result[0].serve;
-        statistics.HP += result[0].hp;
+
+        for (const stat of priorityStats) {
+            //@ts-ignore
+            if (typeof statistics[stat] !== "number") {
+                continue;
+            }
+            const value = stat.split("+").reduce((curr, statName) => curr + result[0].statFromString(statName), 0);
+            //@ts-ignore
+            statistics[stat] += value;
+        }
+
         statistics.Level = Math.max(result[0].level, statistics.Level);
 
         for (const item of result) {
             for (const char of item.character ? [item.character] : characters) {
                 statistics.characters.add(char)
-                table.appendChild(itemToTableRow(item, sourceFilter, char));
+                table.appendChild(itemToTableRow(item, sourceFilter, priorityStats, char));
             }
             statistics.cost = combineCosts(costOf(item, character && isCharacter(character) ? character : undefined), statistics.cost);
         }
@@ -998,19 +1004,12 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
         table.appendChild(createHTML(
             ["tr",
                 ["td", { class: "total Name_column" }, "Total:"],
-                ["td", { class: "total ID_column numeric" }],
                 ["td", { class: "total Character_column" }],
                 ["td", { class: "total Part_column" }],
-                ["td", { class: "total Str_column numeric" }, `${statistics.Str}`],
-                ["td", { class: "total Sta_column numeric" }, `${statistics.Sta}`],
-                ["td", { class: "total Dex_column numeric" }, `${statistics.Dex}`],
-                ["td", { class: "total Wil_column numeric" }, `${statistics.Wil}`],
-                ["td", { class: "total Smash_column numeric" }, `${statistics.Smash}`],
-                ["td", { class: "total Movement_column numeric" }, `${statistics.Movement}`],
-                ["td", { class: "total Charge_column numeric" }, `${statistics.Charge}`],
-                ["td", { class: "total Lob_column numeric" }, `${statistics.Lob}`],
-                ["td", { class: "total Serve_column numeric" }, `${statistics.Serve}`],
-                ["td", { class: "total HP_column numeric" }, `${statistics.HP}`],
+                ...priorityStats.map(stat => createHTML(["td", { class: "total numeric" },
+                    //@ts-ignore
+                    `${statistics[stat]}`
+                ])),
                 ["td", { class: "total Level_column numeric" }, `${statistics.Level}`],
                 ["td", { class: "total Source_column" }, total_sources.join(", ")],
             ]
@@ -1023,7 +1022,8 @@ export function getResultsTable(filter: (item: Item) => boolean, sourceFilter: (
         }
     }
 
-    for (const attribute of ["Str", "Sta", "Dex", "Wil", "Smash", "Movement", "Charge", "Lob", "Serve", "HP",] as const) {
+    for (const attribute of priorityStats) {
+        //@ts-ignore
         if (statistics[attribute] === 0) {
             for (const column_element of table.getElementsByClassName(`${attribute}_column`)) {
                 if (!(column_element instanceof HTMLElement)) {

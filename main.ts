@@ -422,50 +422,21 @@ function updateResults() {
 
     const comparators: ((lhs: Item, rhs: Item) => number)[] = [];
 
+    const priorityList = document.getElementById("priority_list");
+    if (!(priorityList instanceof HTMLOListElement)) {
+        throw "Internal error";
+    }
+    const priorityStats = Array
+        .from(priorityList.childNodes)
+        .filter(node => !node.textContent?.includes('\n'))
+        .filter(node => node.textContent)
+        .map(node => node.textContent!);
     {
-        const priorityList = document.getElementById("priority_list");
-        if (!(priorityList instanceof HTMLOListElement)) {
-            throw "Internal error";
-        }
-        const texts = Array
-            .from(priorityList.childNodes)
-            .filter(node => !node.textContent?.includes('\n'))
-            .filter(node => node.textContent)
-            .map(node => node.textContent!);
-        function getStat(item: Item, name: string): number {
-            switch (name) {
-                case "Movement Speed":
-                    return item.movement;
-                case "Charge":
-                    return item.charge;
-                case "Lob":
-                    return item.lob;
-                case "Str":
-                    return item.str;
-                case "Dex":
-                    return item.dex;
-                case "Sta":
-                    return item.sta;
-                case "Will":
-                    return item.wil;
-                case "Serve":
-                    return item.serve;
-                case "Quickslots":
-                    return item.quickslots;
-                case "Buffslots":
-                    return item.buffslots;
-                case "HP":
-                    return item.hp;
-                default:
-                    throw "Internal error";
-            }
-        }
-        for (const text of texts) {
-            getStat;
-            const stats = text.split("+");
+        for (const stat of priorityStats) {
+            const stats = stat.split("+");
             comparators.push((lhs: Item, rhs: Item) => compare(
-                stats.map(stat => getStat(lhs, stat)).reduce((n, m) => n + m),
-                stats.map(stat => getStat(rhs, stat)).reduce((n, m) => n + m)
+                stats.map(stat => lhs.statFromString(stat)).reduce((n, m) => n + m),
+                stats.map(stat => rhs.statFromString(stat)).reduce((n, m) => n + m)
             ));
         }
     }
@@ -487,6 +458,7 @@ function updateResults() {
             }
             return [...items, item];
         },
+        priorityStats,
         selected_character
     );
     const target = document.getElementById("results");
