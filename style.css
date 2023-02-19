@@ -38,7 +38,9 @@ li.dropzone:active {
 }
 
 li.drophover {
-    background-color: lightblue;
+    border-color: blue;
+    border-style: solid;
+    border-width: 1;
 }
 
 [hidden] {
@@ -116,5 +118,5 @@ dialog {
 
 hr#dragOverBar {
     margin: 0;
-    color: lightblue;
+    color: blue;
 }
