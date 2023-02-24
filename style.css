@@ -13,6 +13,19 @@ div.rowlayout * {
     height: fit-content;
 }
 
+div.columnlayout {
+    display: flex;
+    width: max-content;
+}
+
+div.columnlayout * {
+    display: block;
+}
+
+#enchantdiv {
+    margin-top: 1em;
+}
+
 div#characterFilters {
     display: inline-block;
     height: fit-content;

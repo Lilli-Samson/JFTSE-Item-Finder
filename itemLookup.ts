@@ -131,6 +131,14 @@ export class Item {
                 return this.sta;
             case "Will":
                 return this.wil;
+            case "Max Str":
+                return this.max_str;
+            case "Max Dex":
+                return this.max_dex;
+            case "Max Sta":
+                return this.max_sta;
+            case "Max Will":
+                return this.max_wil;
             case "Serve":
                 return this.serve;
             case "Quickslots":
@@ -330,16 +338,16 @@ function parseItemData(data: string) {
                     item.serve = parseInt(value);
                     break;
                 case "MAX_STR":
-                    item.max_str = parseInt(value);
+                    item.max_str = Math.max(parseInt(value), item.str);
                     break;
                 case "MAX_STA":
-                    item.max_sta = parseInt(value);
+                    item.max_sta = Math.max(parseInt(value), item.sta);
                     break;
                 case "MAX_DEX":
-                    item.max_dex = parseInt(value);
+                    item.max_dex = Math.max(parseInt(value), item.dex);
                     break;
                 case "MAX_WIL":
-                    item.max_wil = parseInt(value);
+                    item.max_wil = Math.max(parseInt(value), item.wil);
                     break;
                 case "EnchantElement":
                     item.element_enchantable = !!parseInt(value);

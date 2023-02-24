@@ -244,6 +244,11 @@ function saveSelection() {
         else {
             Variable_storage.delete_variable("nameFilter");
         }
+        const enchantToggle = document.getElementById("enchantToggle");
+        if (!(enchantToggle instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        Variable_storage.set_variable("enchantToggle", enchantToggle.checked);
     }
 
     Variable_storage.set_variable("excluded_item_ids", Array.from(excluded_item_ids).join(","));
@@ -289,11 +294,17 @@ function restoreSelection() {
         if (!(namefilter instanceof HTMLInputElement)) {
             throw "Internal error";
         }
+
         const item_name = Variable_storage.get_variable("nameFilter");
         if (typeof item_name === "string") {
             namefilter.value = item_name;
         }
 
+        const enchantToggle = document.getElementById("enchantToggle");
+        if (!(enchantToggle instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        enchantToggle.checked = !!Variable_storage.get_variable("enchantToggle");
     }
 
     const excluded_ids = Variable_storage.get_variable("excluded_item_ids");
@@ -491,6 +502,28 @@ function setDisplayUpdates() {
         throw "Internal error";
     }
     namefilter.addEventListener("input", updateResults);
+
+    const enchantToggle = document.getElementById("enchantToggle");
+    if (!(enchantToggle instanceof HTMLInputElement)) {
+        throw "Internal error";
+    }
+    const priorityList = document.getElementById("priority_list");
+    if (!(priorityList instanceof HTMLOListElement)) {
+        throw "Internal error";
+    }
+    enchantToggle.addEventListener("input", () => {
+        const priorityStatNodes = Array
+            .from(priorityList.childNodes)
+            .filter(node => !node.textContent?.includes('\n'))
+            .filter(node => node.textContent);
+
+        for (const node of priorityStatNodes) {
+            const regex = enchantToggle.checked ? /^((?:Str)|(?:Sta)|(?:Dex)|(?:Will))$/ : /^Max ((?:Str)|(?:Sta)|(?:Dex)|(?:Will))$/;
+            const replacer = enchantToggle.checked ? "Max $1" : "$1";
+            node.textContent = node.textContent!.split("+").map(s => s.replace(regex, replacer)).join("+");
+        }
+        updateResults();
+    });
 }
 
 setDisplayUpdates();
