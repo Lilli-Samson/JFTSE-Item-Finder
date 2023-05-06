@@ -455,6 +455,132 @@ function parseShopData(data: string) {
     console.log(`Found ${count} shop items`);
 }
 
+class ApiItem {
+    productIndex = 0;
+    display = 0;
+    hitDisplay = false;
+    enabled = false;
+    useType = "";
+    use0 = 0;
+    use1 = 0;
+    use2 = 0;
+    priceType = "GOLD";
+    oldPrice0 = 0;
+    oldPrice1 = 0;
+    oldPrice2 = 0;
+    price0 = 0;
+    price1 = 0;
+    price2 = 0;
+    couplePrice = 0;
+    category = "";
+    name = "";
+    goldBack = 0;
+    enableParcel = false;
+    forPlayer = 0;
+    item0 = 0;
+    item1 = 0;
+    item2 = 0;
+    item3 = 0;
+    item4 = 0;
+    item5 = 0;
+    item6 = 0;
+    item7 = 0;
+    item8 = 0;
+    item9 = 0;
+}
+
+function isApiItem(obj: any): obj is ApiItem {
+    if (obj === null || typeof obj !== "object") {
+        return false;
+    }
+    return [
+        typeof obj.productIndex === "number",
+        typeof obj.display === "number",
+        typeof obj.hitDisplay === "boolean",
+        typeof obj.enabled === "boolean",
+        typeof obj.useType === "string",
+        typeof obj.use0 === "number",
+        typeof obj.use1 === "number",
+        typeof obj.use2 === "number",
+        typeof obj.priceType === "string",
+        typeof obj.oldPrice0 === "number",
+        typeof obj.oldPrice1 === "number",
+        typeof obj.oldPrice2 === "number",
+        typeof obj.price0 === "number",
+        typeof obj.price1 === "number",
+        typeof obj.price2 === "number",
+        typeof obj.couplePrice === "number",
+        typeof obj.category === "string",
+        typeof obj.name === "string",
+        typeof obj.goldBack === "number",
+        typeof obj.enableParcel === "boolean",
+        typeof obj.forPlayer === "number",
+        typeof obj.item0 === "number",
+        typeof obj.item1 === "number",
+        typeof obj.item2 === "number",
+        typeof obj.item3 === "number",
+        typeof obj.item4 === "number",
+        typeof obj.item5 === "number",
+        typeof obj.item6 === "number",
+        typeof obj.item7 === "number",
+        typeof obj.item8 === "number",
+        typeof obj.item9 === "number"
+    ].every(b => b);
+}
+
+function parseApiShopData(data: string) {
+    for (const apiItem of JSON.parse(data)) {
+        if (!isApiItem(apiItem)) {
+            console.error(`Incorrect format of item: ${data}`);
+            continue;
+        }
+
+        const inner_items = [
+            apiItem.item0,
+            apiItem.item1,
+            apiItem.item2,
+            apiItem.item3,
+            apiItem.item4,
+            apiItem.item5,
+            apiItem.item6,
+            apiItem.item7,
+            apiItem.item8,
+            apiItem.item9,
+        ].filter(id => !!id && items.get(id)).map(id => items.get(id)!);
+
+        if (apiItem.category === "PARTS") {
+            if (inner_items.length === 1) {
+                shop_items.set(apiItem.display, inner_items[0]);
+            }
+            else {
+                const item = new Item();
+                item.name_en = apiItem.name;
+                shop_items.set(apiItem.productIndex, item);
+            }
+            if (apiItem.enabled) {
+                const itemSource = new ShopItemSource(apiItem.display, apiItem.price0, apiItem.priceType === "MINT", inner_items);
+                for (const item of inner_items) {
+                    item.sources.push(itemSource);
+                }
+            }
+        }
+        else if (apiItem.category === "LOTTERY") {
+            const gachaItem = new Item();
+            gachaItem.name_en = apiItem.name;
+            shop_items.set(apiItem.display, gachaItem);
+            if (apiItem.enabled) {
+                gachaItem.sources.push(new ShopItemSource(apiItem.display, apiItem.price0, apiItem.priceType === "MINT", inner_items));
+            }
+        }
+        else {
+            const otherItem = new Item();
+            otherItem.name_en = apiItem.name;
+            shop_items.set(apiItem.display, otherItem);
+        }
+
+    }
+}
+
 function parseGachaData(data: string, gacha: Gacha) {
     for (const line of data.split("\n")) {
         if (!line.includes("<LotteryItem_")) {
@@ -532,7 +658,7 @@ function parseGuardianData(data: string) {
     }
 }
 
-async function download(url: string, value: number | undefined = undefined, max_value: number | undefined = undefined) {
+export async function download(url: string, value: number | undefined = undefined, max_value: number | undefined = undefined) {
     const filename = url.slice(url.lastIndexOf("/") + 1);
     const element = document.getElementById("loading");
     if (element instanceof HTMLElement) {
@@ -562,11 +688,13 @@ export async function downloadItems() {
     const itemURL = itemSource + "/Item_Parts_Ini3.xml";
     const itemData = await download(itemURL, downloadCounter++);
     const shopURL = itemSource + "/Shop_Ini3.xml";
+    //const shopURL = "https://jftse.com/api/v1/shop?size=100000";
     const shopData = await download(shopURL, downloadCounter++);
     const guardianURL = guardianSource + "/GuardianStages.json";
     const guardianData = await download(guardianURL, downloadCounter++);
     parseItemData(itemData);
     parseShopData(shopData);
+    //parseApiShopData(shopData);
     parseGuardianData(guardianData);
     console.log(`Found ${gachas.size} gachas`);
     for (const [, gacha] of gachas) {
