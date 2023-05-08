@@ -658,22 +658,19 @@ function parseGuardianData(data: string) {
     }
 }
 
-export async function download(url: string, value: number | undefined = undefined, max_value: number | undefined = undefined) {
+let downloaded = 0;
+
+export async function download(url: string): Promise<string> {
     const filename = url.slice(url.lastIndexOf("/") + 1);
     const element = document.getElementById("loading");
     if (element instanceof HTMLElement) {
         element.textContent = `Loading ${filename}, please wait...`;
     }
+    const reply = await fetch(url);
     const progressbar = document.getElementById("progressbar");
     if (progressbar instanceof HTMLProgressElement) {
-        if (value) {
-            progressbar.value = value;
-        }
-        if (max_value) {
-            progressbar.max = max_value;
-        }
+        progressbar.value++;
     }
-    const reply = await fetch(url);
     if (!reply.ok) {
         return "";
     }
@@ -681,26 +678,38 @@ export async function download(url: string, value: number | undefined = undefine
 }
 
 export async function downloadItems() {
+    const progressbar = document.getElementById("progressbar");
+    if (progressbar instanceof HTMLProgressElement) {
+        progressbar.value = 0;
+        progressbar.max = 103;
+    }
     const itemSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res";
     const gachaSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/game-server/src/main/resources/res/lottery";
     const guardianSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/"
-    let downloadCounter = 1;
     const itemURL = itemSource + "/Item_Parts_Ini3.xml";
-    const itemData = await download(itemURL, downloadCounter++);
+    const itemData = download(itemURL);
     const shopURL = itemSource + "/Shop_Ini3.xml";
     //const shopURL = "https://jftse.com/api/v1/shop?size=100000";
-    const shopData = await download(shopURL, downloadCounter++);
+    const shopData = download(shopURL);
     const guardianURL = guardianSource + "/GuardianStages.json";
-    const guardianData = await download(guardianURL, downloadCounter++);
-    parseItemData(itemData);
-    parseShopData(shopData);
+    const guardianData = download(guardianURL);
+    parseItemData(await itemData);
+    parseShopData(await shopData);
     //parseApiShopData(shopData);
-    parseGuardianData(guardianData);
     console.log(`Found ${gachas.size} gachas`);
+    if (progressbar instanceof HTMLProgressElement) {
+        progressbar.value = 0;
+        progressbar.max = gachas.size + 3;
+    }
+    const gacha_items: [Promise<string>, Gacha, string][] = [];
     for (const [, gacha] of gachas) {
         const gacha_url = `${gachaSource}/Ini3_Lot_${`${gacha.gacha_index}`.padStart(2, "0")}.xml`;
+        gacha_items.push([download(gacha_url), gacha, gacha_url]);
+    }
+    parseGuardianData(await guardianData);
+    for (const [item, gacha, gacha_url] of gacha_items) {
         try {
-            parseGachaData(await download(gacha_url, downloadCounter++, gachas.size + 3), gacha);
+            parseGachaData(await item, gacha);
         } catch (e) {
             console.warn(`Failed downloading ${gacha_url} because ${e}`);
         }
