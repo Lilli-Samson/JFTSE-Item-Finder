@@ -1,5 +1,5 @@
 import { makeCheckboxTree, TreeNode, getLeafStates, setLeafStates } from './checkboxTree';
-import { download, downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, Character, characters, isCharacter, ShopItemSource, GachaItemSource } from './itemLookup';
+import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, Character, characters, isCharacter, ShopItemSource, GachaItemSource } from './itemLookup';
 import { createHTML } from './html';
 import { Variable_storage } from './storage';
 
@@ -528,25 +528,8 @@ function setDisplayUpdates() {
 
 setDisplayUpdates();
 
-function addCorsListener() {
-    const corsButton = document.getElementById("CORStest");
-    if (!(corsButton instanceof HTMLButtonElement)) {
-        return;
-    }
-    corsButton.addEventListener("click", async () => {
-        try {
-            await download("https://jftse.com/api/v1/shop?size=1");
-            corsButton.textContent = "CORS Success!";
-        }
-        catch (e) {
-            corsButton.textContent = `Fail: ${e}`;
-        }
-    });
-}
-
 window.addEventListener("load", async () => {
     restoreSelection();
-    addCorsListener();
     await downloadItems();
     for (const element of document.getElementsByClassName("show_after_load")) {
         if (element instanceof HTMLElement) {

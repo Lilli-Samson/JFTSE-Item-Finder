@@ -550,7 +550,7 @@ function parseApiShopData(data: string) {
 
         if (apiItem.category === "PARTS") {
             if (inner_items.length === 1) {
-                shop_items.set(apiItem.display, inner_items[0]);
+                shop_items.set(apiItem.productIndex, inner_items[0]);
             }
             else {
                 const item = new Item();
@@ -558,24 +558,25 @@ function parseApiShopData(data: string) {
                 shop_items.set(apiItem.productIndex, item);
             }
             if (apiItem.enabled) {
-                const itemSource = new ShopItemSource(apiItem.display, apiItem.price0, apiItem.priceType === "MINT", inner_items);
+                const itemSource = new ShopItemSource(apiItem.productIndex, apiItem.price0, apiItem.priceType === "MINT", inner_items);
                 for (const item of inner_items) {
                     item.sources.push(itemSource);
                 }
             }
         }
         else if (apiItem.category === "LOTTERY") {
+            gachas.set(apiItem.productIndex, new Gacha(apiItem.productIndex, apiItem.item0, apiItem.name));
             const gachaItem = new Item();
             gachaItem.name_en = apiItem.name;
-            shop_items.set(apiItem.display, gachaItem);
+            shop_items.set(apiItem.productIndex, gachaItem);
             if (apiItem.enabled) {
-                gachaItem.sources.push(new ShopItemSource(apiItem.display, apiItem.price0, apiItem.priceType === "MINT", inner_items));
+                gachaItem.sources.push(new ShopItemSource(apiItem.productIndex, apiItem.price0, apiItem.priceType === "MINT", inner_items));
             }
         }
         else {
             const otherItem = new Item();
             otherItem.name_en = apiItem.name;
-            shop_items.set(apiItem.display, otherItem);
+            shop_items.set(apiItem.productIndex, otherItem);
         }
 
     }
@@ -658,8 +659,6 @@ function parseGuardianData(data: string) {
     }
 }
 
-let downloaded = 0;
-
 export async function download(url: string): Promise<string> {
     const filename = url.slice(url.lastIndexOf("/") + 1);
     const element = document.getElementById("loading");
@@ -681,21 +680,23 @@ export async function downloadItems() {
     const progressbar = document.getElementById("progressbar");
     if (progressbar instanceof HTMLProgressElement) {
         progressbar.value = 0;
-        progressbar.max = 103;
+        progressbar.max = 122;
     }
     const itemSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res";
     const gachaSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/game-server/src/main/resources/res/lottery";
     const guardianSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/"
     const itemURL = itemSource + "/Item_Parts_Ini3.xml";
     const itemData = download(itemURL);
-    const shopURL = itemSource + "/Shop_Ini3.xml";
-    //const shopURL = "https://jftse.com/api/v1/shop?size=100000";
-    const shopData = download(shopURL);
+    //const shopURL = itemSource + "/Shop_Ini3.xml";
+    const max_shop_pages = 20; //currently need only 10, should be enough
+    const shopURL = "https://jftse.com/api/v1/shop?size=1000&page=";
+    const shopDatas = [...Array(max_shop_pages).keys()].map(n => download(`${shopURL}${n}`));
     const guardianURL = guardianSource + "/GuardianStages.json";
     const guardianData = download(guardianURL);
     parseItemData(await itemData);
-    parseShopData(await shopData);
-    //parseApiShopData(shopData);
+    //parseShopData(await shopData);
+    await Promise.all(shopDatas.map(p => p.then(data => parseApiShopData(data))));
+
     console.log(`Found ${gachas.size} gachas`);
     if (progressbar instanceof HTMLProgressElement) {
         progressbar.value = 0;
