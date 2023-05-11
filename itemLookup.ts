@@ -722,7 +722,7 @@ function deletableItem(name: string, id: number) {
     return createHTML(["div", createHTML(["button", { class: "item_removal", "data-item_index": `${id}` }, "X"]), name]);
 }
 
-function createPopupLink(text: string, content: HTMLElement | string | (HTMLElement | string)[]) {
+export function createPopupLink(text: string, content: HTMLElement | string | (HTMLElement | string)[]) {
     const link = createHTML(["a", { class: "popup_link" }, text]);
     link.addEventListener("click", (e) => {
         if (!(e instanceof MouseEvent)) {

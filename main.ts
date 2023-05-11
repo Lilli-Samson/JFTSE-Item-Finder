@@ -1,5 +1,5 @@
 import { makeCheckboxTree, TreeNode, getLeafStates, setLeafStates } from './checkboxTree';
-import { downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, Character, characters, isCharacter, ShopItemSource, GachaItemSource } from './itemLookup';
+import { createPopupLink, downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, Character, characters, isCharacter, ShopItemSource, GachaItemSource } from './itemLookup';
 import { createHTML } from './html';
 import { Variable_storage } from './storage';
 
@@ -550,6 +550,14 @@ window.addEventListener("load", async () => {
     levelrange.max = `${maxLevel}`;
     levelrange.dispatchEvent(new Event("input"));
     updateResults();
+    const sort_help = document.getElementById("priority_legend");
+    if (sort_help instanceof HTMLLegendElement) {
+        sort_help.appendChild(createPopupLink(" (?)", createHTML(["p",
+            "Reorder the stats to your liking to affect the results list.", ["br"],
+            "Drag a stat up or down to change its importance (for example drag Lob above Charge).", ["br"],
+            "Drag a stat onto another to combine them (for example Str onto Dex, the results will display Str+Dex).", ["br"],
+            "Drag a combined stat onto itself to separate them."])));
+    }
 });
 
 document.body.addEventListener('click', (event) => {
