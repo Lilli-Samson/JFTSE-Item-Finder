@@ -1,5 +1,5 @@
 import { makeCheckboxTree, TreeNode, getLeafStates, setLeafStates } from './checkboxTree';
-import { createPopupLink, downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, Character, characters, isCharacter, ShopItemSource, GachaItemSource } from './itemLookup';
+import { createPopupLink, downloadItems, getResultsTable, Item, ItemSource, getMaxItemLevel, items, Character, characters, isCharacter, ShopItemSource, GachaItemSource, getGachaTable } from './itemLookup';
 import { createHTML } from './html';
 import { Variable_storage } from './storage';
 
@@ -206,9 +206,41 @@ function setSelectedCharacter(character: Character | "All") {
     }
 }
 
+
+export const itemSelectors = ["partsSelector", "gachaSelector", "otherItemsSelector"] as const;
+export type ItemSelector = typeof itemSelectors[number];
+export function isItemSelector(itemSelector: string): itemSelector is ItemSelector {
+    return (itemSelectors as unknown as string[]).includes(itemSelector);
+}
+
+function getItemTypeSelection(): ItemSelector {
+    const partsSelector = document.getElementById("partsSelector");
+    if (!(partsSelector instanceof HTMLInputElement)) {
+        throw "Internal error";
+    }
+    if (partsSelector.checked) {
+        return "partsSelector";
+    }
+    const gachaSelector = document.getElementById("gachaSelector");
+    if (!(gachaSelector instanceof HTMLInputElement)) {
+        throw "Internal error";
+    }
+    if (gachaSelector.checked) {
+        return "gachaSelector";
+    }
+    const otherItemsSelector = document.getElementById("otherItemsSelector");
+    if (!(otherItemsSelector instanceof HTMLInputElement)) {
+        throw "Internal error";
+    }
+    if (otherItemsSelector.checked) {
+        return "otherItemsSelector";
+    }
+    throw "Internal error";
+}
+
 function saveSelection() {
-    const selected_character = getSelectedCharacter() || "All";
-    Variable_storage.set_variable("Character", selected_character);
+    const selectedCharacter = getSelectedCharacter() || "All";
+    Variable_storage.set_variable("Character", selectedCharacter);
     {//Filters
         const partsFilterList = document.getElementById("partsFilter")?.children[0];
         if (!(partsFilterList instanceof HTMLUListElement)) {
@@ -249,6 +281,9 @@ function saveSelection() {
             throw "Internal error";
         }
         Variable_storage.set_variable("enchantToggle", enchantToggle.checked);
+    }
+    { //item selection
+        Variable_storage.set_variable("itemTypeSelector", getItemTypeSelection());
     }
 
     Variable_storage.set_variable("excluded_item_ids", Array.from(excluded_item_ids).join(","));
@@ -307,6 +342,19 @@ function restoreSelection() {
         enchantToggle.checked = !!Variable_storage.get_variable("enchantToggle");
     }
 
+    { //item selection
+        let itemTypeSelector = Variable_storage.get_variable("itemTypeSelector");
+        if (typeof itemTypeSelector !== "string" || !isItemSelector(itemTypeSelector)) {
+            itemTypeSelector = "partsSelector";
+        }
+        const selector = document.getElementById(itemTypeSelector);
+        if (!(selector instanceof HTMLInputElement)) {
+            throw "Internal error";
+        }
+        selector.checked = true;
+        selector.dispatchEvent(new Event("change", { bubbles: false, cancelable: true }));
+    }
+
     const excluded_ids = Variable_storage.get_variable("excluded_item_ids");
     if (typeof excluded_ids === "string") {
         for (const id of excluded_ids.split(",")) {
@@ -315,7 +363,7 @@ function restoreSelection() {
     }
     excluded_item_ids.delete(NaN);
 
-    //must be lasts because it triggers a store
+    //must be last because it triggers a store
     levelrange.dispatchEvent(new Event("input"));
 }
 
@@ -323,22 +371,46 @@ function updateResults() {
     saveSelection();
     const filters: ((item: Item) => boolean)[] = [];
     const sourceFilters: ((itemSource: ItemSource) => boolean)[] = [];
-    let selected_character: Character | undefined;
+    let selectedCharacter: Character | undefined;
+    const partsFilterList = document.getElementById("partsFilter")?.children[0];
+    if (!(partsFilterList instanceof HTMLUListElement)) {
+        throw "Internal error";
+    }
+    const enchantToggle = document.getElementById("enchantToggle");
+    if (!(enchantToggle instanceof HTMLInputElement)) {
+        throw "Internal error";
+    }
+    const namefilter = document.getElementById("nameFilter");
+    if (!(namefilter instanceof HTMLInputElement)) {
+        throw "Internal error";
+    }
 
     { //character filter
-        selected_character = getSelectedCharacter();
-        if (selected_character) {
-            filters.push(item => item.character === selected_character);
+        selectedCharacter = getSelectedCharacter();
+        switch (getItemTypeSelection()) {
+            case 'partsSelector':
+                if (selectedCharacter) {
+                    filters.push(item => item.character === selectedCharacter);
+                }
+                break;
+            case 'gachaSelector':
+                break;
+            case 'otherItemsSelector':
+                break;
         }
     }
 
     { //parts filter
-        const partsFilterList = document.getElementById("partsFilter")?.children[0];
-        if (!(partsFilterList instanceof HTMLUListElement)) {
-            throw "Internal error";
+        switch (getItemTypeSelection()) {
+            case 'partsSelector':
+                const partsStates = getLeafStates(partsFilterList);
+                filters.push(item => partsStates[item.part]);
+                break;
+            case 'gachaSelector':
+                break;
+            case 'otherItemsSelector':
+                break;
         }
-        const partsStates = getLeafStates(partsFilterList);
-        filters.push(item => partsStates[item.part]);
     }
 
     { //availability filter
@@ -403,10 +475,6 @@ function updateResults() {
         const maxLevel = parseInt(levelrange.value);
         filters.push((item: Item) => item.level <= maxLevel);
 
-        const namefilter = document.getElementById("nameFilter");
-        if (!(namefilter instanceof HTMLInputElement)) {
-            throw "Internal error";
-        }
         const item_name = namefilter.value;
         if (item_name) {
             filters.push(item => item.name_en.toLowerCase().includes(item_name.toLowerCase()));
@@ -452,26 +520,42 @@ function updateResults() {
         }
     }
 
-    const table = getResultsTable(
-        item => filters.every(filter => filter(item)),
-        itemSource => sourceFilters.every(filter => filter(itemSource)),
-        (items, item) => {
-            if (items.length === 0) {
-                return [item];
-            }
-            for (const comparator of comparators) {
-                switch (comparator(items[0], item)) {
-                    case -1:
-                        return [item];
-                    case 1:
-                        return items;
-                }
-            }
-            return [...items, item];
-        },
-        priorityStats,
-        selected_character
-    );
+    const table = (() => {
+        switch (getItemTypeSelection()) {
+            case 'partsSelector':
+                return getResultsTable(
+                    item => filters.every(filter => filter(item)),
+                    itemSource => sourceFilters.every(filter => filter(itemSource)),
+                    (items, item) => {
+                        if (items.length === 0) {
+                            return [item];
+                        }
+                        for (const comparator of comparators) {
+                            switch (comparator(items[0], item)) {
+                                case -1:
+                                    return [item];
+                                case 1:
+                                    return items;
+                            }
+                        }
+                        return [...items, item];
+                    },
+                    priorityStats,
+                    selectedCharacter
+                );
+            case 'gachaSelector':
+                return getGachaTable(item => filters.every(filter => filter(item)), selectedCharacter);
+            case 'otherItemsSelector':
+                return createHTML(
+                    ["table",
+                        ["tr",
+                            ["th", "TODO: Other items"],
+                        ]
+                    ]
+                );
+        }
+    })();
+
     const target = document.getElementById("results");
     if (!target) {
         return;
@@ -528,7 +612,48 @@ function setDisplayUpdates() {
 
 setDisplayUpdates();
 
+function setItemTypeSelectorFunctionality() {
+    const priority_group = document.getElementById("priority_group");
+    if (!(priority_group instanceof HTMLFieldSetElement)) {
+        return;
+    }
+    const partsSelector = document.getElementById("partsSelector");
+    if (!(partsSelector instanceof HTMLInputElement)) {
+        return;
+    }
+    const partsFilter = document.getElementById("partsFilter");
+    if (!(partsFilter instanceof HTMLDivElement)) {
+        return;
+    }
+    partsSelector.addEventListener("change", () => {
+        priority_group.classList.remove("disabled");
+        partsFilter.classList.remove("disabled");
+        updateResults();
+    });
+
+    const gachaSelector = document.getElementById("gachaSelector");
+    if (!(gachaSelector instanceof HTMLInputElement)) {
+        return;
+    }
+    gachaSelector.addEventListener("change", () => {
+        priority_group.classList.add("disabled");
+        partsFilter.classList.add("disabled");
+        updateResults();
+    });
+
+    const otherItemsSelector = document.getElementById("otherItemsSelector");
+    if (!(otherItemsSelector instanceof HTMLInputElement)) {
+        return;
+    }
+    otherItemsSelector.addEventListener("change", () => {
+        priority_group.classList.add("disabled");
+        partsFilter.classList.add("disabled");
+        updateResults();
+    });
+}
+
 window.addEventListener("load", async () => {
+    setItemTypeSelectorFunctionality();
     restoreSelection();
     await downloadItems();
     for (const element of document.getElementsByClassName("show_after_load")) {

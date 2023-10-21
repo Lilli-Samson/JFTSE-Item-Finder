@@ -10,6 +10,7 @@
 
 <body>
     <div id="top_div"></div>
+
     <fieldset id="filter_group">
         <legend>Filter</legend>
         <div>
@@ -25,10 +26,20 @@
                 </div>
             </div>
         </div>
-        <div id="partsFilter"></div>
+        <div>
+            <input id="partsSelector" type="radio" name="itemTypeSelector">
+            <label for="partsSelector">Equipment</label>
+            <div id="partsFilter"></div>
+            <input id="gachaSelector" type="radio" name="itemTypeSelector">
+            <label for="gachaSelector">Gacha</label>
+            <br>
+            <input id="otherItemsSelector" type="radio" name="itemTypeSelector" class="disabled">
+            <label for="otherItemsSelector" class="disabled">Other items</label>
+        </div>
         <div id="availabilityFilter"></div>
         <div id="itemFilter"></div>
     </fieldset>
+
     <fieldset id="priority_group">
         <legend id="priority_legend">Sort Priority</legend>
         <ol reversed id="priority_list">
@@ -49,6 +60,7 @@
             -->
         </ol>
     </fieldset>
+
     <fieldset id="results_group">
         <legend>Results</legend>
         <div id="loading_group" class="hide_after_load">
@@ -57,6 +69,7 @@
         </div>
         <div id="results" class="show_after_load" hidden></div>
     </fieldset>
+
     <script src="script.js"></script>
 
     <footer>

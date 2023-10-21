@@ -787,7 +787,7 @@ function quantityString(quantity_min: number, quantity_max: number) {
     return ` x ${quantity_min}-${quantity_max}`;
 }
 
-function createGachaSourcePopup(item: Item, itemSource: ItemSource, character?: Character) {
+function createGachaSourcePopup(item: Item | undefined, itemSource: ItemSource, character?: Character) {
     const content = character ? createHTML([
         "table",
         [
@@ -965,6 +965,26 @@ function itemToTableRow(item: Item, sourceFilter: (itemSource: ItemSource) => bo
         ]
     );
     return row;
+}
+
+export function getGachaTable(filter: (item: Item) => boolean, char?: Character): HTMLTableElement {
+    const table = createHTML(
+        ["table",
+            ["tr",
+                ["th", { class: "Name_column" }, "Name"],
+            ]
+        ]
+    );
+    for (const [, gacha] of gachas) {
+        const gachaItem = shop_items.get(gacha.shop_index);
+        if (!gachaItem) {
+            throw "Internal error";
+        }
+        if (filter(gachaItem)) {
+            table.appendChild(createHTML(["tr", ["td", createGachaSourcePopup(undefined, new ItemSource(gacha.shop_index), char)]]));
+        }
+    }
+    return table;
 }
 
 export function getResultsTable(
