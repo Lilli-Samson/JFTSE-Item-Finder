@@ -123,6 +123,8 @@ export class Item {
                 return this.charge;
             case "Lob":
                 return this.lob;
+            case "Smash":
+                return this.smash;
             case "Str":
                 return this.str;
             case "Dex":
