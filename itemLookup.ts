@@ -691,7 +691,7 @@ export async function downloadItems() {
     const itemData = download(itemURL);
     //const shopURL = itemSource + "/Shop_Ini3.xml";
     const max_shop_pages = 20; //currently need only 10, should be enough
-    const shopURL = "https://jftse.com/api/v1/shop?size=1000&page=";
+    const shopURL = "https://jftse.com/jftse-restservice/api/shop?size=1000&page=";
     const shopDatas = [...Array(max_shop_pages).keys()].map(n => download(`${shopURL}${n}`));
     const guardianURL = guardianSource + "/GuardianStages.json";
     const guardianData = download(guardianURL);
