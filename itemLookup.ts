@@ -673,6 +673,7 @@ export async function download(url: string): Promise<string> {
         progressbar.value++;
     }
     if (!reply.ok) {
+        alert(`Oops, something broke. Complain to Lilli/Kanone/XxharCs about:\nFailed downloading ${url} because of ${reply.statusText}.`);
         return "";
     }
     return reply.text();
