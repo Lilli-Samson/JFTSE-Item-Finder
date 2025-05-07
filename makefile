@@ -5,16 +5,18 @@ MINIFY = node_modules/uglify-js/bin/uglifyjs
 RM = rm -f
 CP = cp
 
-.PHONY: all
-all: release
+all: release debug
 
-.PHONY: release
 release: browserified.js
 	$(MINIFY) $< -cm > script.js
 
-.PHONY: debug
 debug: main.js
-	$(BROWSERIFY) -d $< > script.js
+	$(BROWSERIFY) -d $< > debug/script.js
+	$(CP) index.html debug/index.html
+	$(CP) style.css debug/style.css
+	$(CP) style.css debug/style.css
+	$(CP) *.ts debug
+	$(CP)  favicon.ico debug/favicon.ico
 
 browserified.js: main.js
 	$(BROWSERIFY) $< > $@

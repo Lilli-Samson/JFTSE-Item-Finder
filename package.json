@@ -1,6 +1,7 @@
 {
     "type": "module",
     "scripts": {
+        "build": "make -j",
         "build_debug": "make -j debug",
         "build_release": "make -j release",
         "clean": "make -j clean"

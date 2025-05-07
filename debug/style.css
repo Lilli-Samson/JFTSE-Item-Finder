@@ -1,0 +1,135 @@
+fieldset {
+    display: inline-flex;
+}
+
+div.rowlayout {
+    display: grid;
+    width: max-content;
+    height: max-content;
+}
+
+div.rowlayout * {
+    display: grid;
+    height: fit-content;
+}
+
+div.columnlayout {
+    display: flex;
+    width: max-content;
+}
+
+div.columnlayout * {
+    display: block;
+}
+
+#enchantdiv {
+    margin-top: 1em;
+}
+
+div#characterFilters {
+    display: inline-block;
+    height: fit-content;
+}
+
+div#top_div {
+    position: relative;
+    width: 0px;
+    height: 0px;
+}
+
+.Radio {
+    display: inline-flex;
+    align-items: center;
+}
+
+li.dropzone {
+    cursor: grab;
+}
+
+li.dropzone:active {
+    cursor: grabbing;
+}
+
+li.drophover {
+    border-color: blue;
+    border-style: solid;
+    border-width: 1;
+}
+
+[hidden] {
+    display: none;
+}
+
+.disabled {
+    pointer-events: none;
+    opacity: 0.4;
+}
+
+div#loading_group {
+    display: grid;
+    width: max-content;
+    height: max-content;
+}
+
+div#loading_group * {
+    display: grid;
+}
+
+progress#progressbar {
+    flex-grow: 1;
+}
+
+table tr:nth-child(even) td {
+    background-color: aliceblue;
+}
+
+td.total {
+    font-weight: bold;
+}
+
+td.numeric {
+    text-align: right;
+}
+
+tr.highlighted,
+li.highlighted {
+    font-weight: bold;
+}
+
+table th {
+    text-align: left;
+}
+
+#notice_group {
+    color: red;
+}
+
+button.item_removal {
+    margin-right: 0.3em;
+}
+
+button.item_removal_removal {
+    margin-right: 0.3em;
+    margin-left: 1em;
+}
+
+ul.checkbox {
+    list-style-type: none;
+}
+
+ul.layout {
+    list-style-type: none;
+}
+
+a.popup_link {
+    text-decoration-line: underline;
+}
+
+dialog {
+    width: max-content;
+}
+
+hr#dragOverBar {
+    margin: 0;
+    color: blue;
+}
