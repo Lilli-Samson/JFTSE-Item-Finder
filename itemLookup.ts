@@ -673,7 +673,7 @@ export async function download(url: string): Promise<string> {
         progressbar.value++;
     }
     if (!reply.ok) {
-        alert(`Oops, something broke. Complain to Lilli/Kanone/XxharCs about:\nFailed downloading ${url} because of ${reply.statusText}.`);
+        alert(`Oops, something broke. Complain to Lilli/Kanone/XxharCs about:\nFailed downloading ${url} because of ${reply.status}${reply.statusText ? " " + reply.status : ""}.`);
         return "";
     }
     return reply.text();
@@ -687,7 +687,7 @@ export async function downloadItems() {
     }
     const itemSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/auth-server/src/main/resources/res";
     const gachaSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/game-server/src/main/resources/res/lottery";
-    const guardianSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res/"
+    const guardianSource = "https://raw.githubusercontent.com/sstokic-tgm/JFTSE/development/emulator/src/main/resources/res"
     const itemURL = itemSource + "/Item_Parts_Ini3.xml";
     const itemData = download(itemURL);
     //const shopURL = itemSource + "/Shop_Ini3.xml";
