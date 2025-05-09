@@ -674,6 +674,12 @@ export async function download(url: string): Promise<string> {
     }
     if (!reply.ok) {
         alert(`Oops, something broke. Complain to Lilli/Kanone/XxharCs about:\nFailed downloading ${url} because of ${reply.status}${reply.statusText ? " " + reply.status : ""}.`);
+        if (url.endsWith(".json")) {
+            return "[]";
+        }
+        else if (url.endsWith(".xml")) {
+            return "<_></_>";
+        }
         return "";
     }
     return reply.text();
